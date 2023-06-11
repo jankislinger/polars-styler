@@ -6,11 +6,11 @@ use std::collections::HashMap;
 
 
 pub trait StylerExt {
-    fn styler(&self) -> Styler;
+    fn style(&self) -> Styler;
 }
 
 impl StylerExt for DataFrame {
-    fn styler(&self) -> Styler {
+    fn style(&self) -> Styler {
         Styler::new(self)
     }
 }
@@ -51,7 +51,7 @@ impl Styler<'_> {
         self
     }
 
-    pub fn precision(mut self, precision: u32) -> Self {
+    pub fn set_precision(mut self, precision: u32) -> Self {
         if self.params.precision.is_some() {
             panic!("precision can only be set once");
         }
@@ -139,7 +139,7 @@ mod test {
         ])
         .unwrap();
 
-        let styler = df.styler();
+        let styler = df.style();
         let html = styler.render();
         println!("{}", html);
         assert!(html.contains("<style>"));
@@ -153,7 +153,7 @@ mod test {
         let x = 1.123456789;
         let df = DataFrame::new(vec![Series::new("a", &[x, 2.123456789, 3.123456789])]).unwrap();
 
-        let styler = df.styler().precision(2);
+        let styler = df.style().set_precision(2);
         let html = styler.render();
         println!("{}", html);
         assert!(html.contains(format!("{:.2}", x).as_str()));
@@ -168,7 +168,7 @@ mod test {
         ])
         .unwrap();
 
-        let styler = df.styler().apply("a", |s| {
+        let styler = df.style().apply("a", |s| {
             s.iter()
                 .map(|v| {
                     if v == AnyValue::Int32(222) {
