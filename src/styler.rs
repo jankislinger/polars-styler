@@ -1,3 +1,4 @@
+use polars::frame::row::Row;
 use polars::prelude::*;
 
 pub trait StylerExt {
@@ -42,12 +43,14 @@ impl Styler<'_> {
             .map(|v| format!("<th>{}</th>", v))
             .collect::<Vec<_>>()
             .join("");
-        let table_body = self
-            .df
-            .iter()
-            .map(move |v| render_series(v, self.params.precision))
-            .collect::<Vec<_>>()
-            .join("");
+
+        let nrows = self.df.height();
+        let mut table_body = "".to_string();
+        for i in 0..nrows {
+            let row = self.df.get_row(i).unwrap();
+            let row_html = render_row(&row, &self.params.precision);
+            table_body.push_str(&row_html);
+        }
         let table = format!(
             "<table>
               <thead>{}</thead>
@@ -59,16 +62,16 @@ impl Styler<'_> {
     }
 }
 
-fn render_series(s: &Series, precision: Option<u32>) -> String {
-    let cells = s
+fn render_row(row: &Row, precision: &Option<u32>) -> String {
+    let cells = row.0
         .iter()
         .map(|v| {
             let Some(precision) = precision else {
                 return v.to_string();
             };
             match v {
-                AnyValue::Float64(f) => format!("{:.1$}", f, precision as usize),
-                AnyValue::Float32(f) => format!("{:.1$}", f, precision as usize),
+                AnyValue::Float64(f) => format!("{:.1$}", f, *precision as usize),
+                AnyValue::Float32(f) => format!("{:.1$}", f, *precision as usize),
                 _ => v.to_string(),
             }
         })
@@ -94,8 +97,8 @@ mod test {
     #[test]
     fn test_styler() {
         let df = DataFrame::new(vec![
-            Series::new("a", &[1, 2, 3]),
-            Series::new("b", &["a", "b", "c"]),
+            Series::new("a", &[1, 222, 3]),
+            Series::new("b", &["fooo", "b", "c"]),
         ])
         .unwrap();
 
@@ -105,6 +108,8 @@ mod test {
         assert!(html.contains("<style>"));
         assert!(html.contains("<div>"));
         assert!(html.contains("</div>"));
+        assert!(html.find("fooo").unwrap() < html.find("222").unwrap());
+
     }
 
     #[test]
