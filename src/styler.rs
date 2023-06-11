@@ -52,10 +52,10 @@ impl Styler<'_> {
             table_body.push_str(&row_html);
         }
         let table = format!(
-            "<table>
+            r#"<table class="dataframe">
               <thead>{}</thead>
               <tbody>{}</tbody>
-            </table>",
+            </table>"#,
             table_head, table_body
         );
         format!("<div>{}{}</div>", style(), table)
@@ -83,8 +83,11 @@ fn render_row(row: &Row, precision: &Option<u32>) -> String {
 
 fn style() -> &'static str {
     "<style>
-        .dataframe > thead > tr > th,
-        .dataframe > tbody > tr > td {
+        .dataframe {
+          border-collapse: collapse;
+        }
+        .dataframe > thead > tr > th, .dataframe > tbody > tr > td {
+          border: 1px solid black;
           text-align: right;
         }
     </style>"
