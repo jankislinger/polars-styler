@@ -63,7 +63,8 @@ impl Styler<'_> {
 }
 
 fn render_row(row: &Row, precision: &Option<u32>) -> String {
-    let cells = row.0
+    let cells = row
+        .0
         .iter()
         .map(|v| {
             let Some(precision) = precision else {
@@ -112,7 +113,6 @@ mod test {
         assert!(html.contains("<div>"));
         assert!(html.contains("</div>"));
         assert!(html.find("fooo").unwrap() < html.find("222").unwrap());
-
     }
 
     #[test]

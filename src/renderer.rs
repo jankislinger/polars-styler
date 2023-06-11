@@ -1,79 +1,80 @@
+use build_html::{Html, Table, TableRow};
+use build_html::{HtmlContainer, TableCell, TableCellType};
 use std::collections::HashMap;
 
 struct Renderer {
     column_names: Vec<String>,
     cell_values: Vec<Vec<String>>, // (col, row)
-    cell_styles: HashMap<(usize, usize), String>,
+    cell_styles: HashMap<(usize, usize), HashMap<String, String>>,
     hash: String,
 }
 
 impl Renderer {
     pub fn render(&self) -> String {
-        format!("{}\n{}", self.styles(), self.table())
+        format!("{}\n{}", self.styles(), self.table().to_html_string())
     }
 
     fn styles(&self) -> String {
-        let mut styles = vec![];
-        for ((col, row), style) in &self.cell_styles {
-            let cell_id = format!("T_{}_row{}_col{}", &self.hash, row, col);
-            styles.push(format!("#{} {{ \n  {}\n}}", cell_id, style));
-        }
-        format!("<style>\n{}\n</style>", styles.join("\n"))
-    }
-
-    fn table(&self) -> String {
-        let table_head = self.table_head();
-        let table_body = self.table_body();
-        format!(
-            r#"<table class="dataframe">
-              {table_head}
-              {table_body}
-            </table>"#
-        )
-    }
-
-    fn table_head(&self) -> String {
-        let table_head = self
-            .column_names
+        let foo_styles = self
+            .cell_styles
             .iter()
-            .map(|v| format!("      <th>{}</th>", v))
+            .map(|((row, col), styles)| {
+                format!(
+                    "#{} {{{}}}",
+                    cell_id(&self.hash, row, col),
+                    css_styles(styles)
+                )
+            })
             .collect::<Vec<_>>()
-            .join("\n");
-        format!("<thead>\n{}\n</thead>", table_head)
+            .join("\n  ");
+        format!("<style>\n  {}\n</style>", foo_styles)
     }
 
-    fn table_body(&self) -> String {
-        let ncol = self.cell_values.len();
-        if ncol == 0 {
-            panic!("No data to render");
+    fn table(&self) -> Table {
+        if self.cell_values.is_empty() {
+            // It may be possible to set `nrow = 0` and have the table rendered
+            panic!("No data to render; there are no columns in the DataFrame.");
         }
         let nrow = self.cell_values[0].len();
 
-        let table_body = (0..nrow)
-            .into_iter()
-            .map(|i| {
-                let row_html = (0..ncol)
-                    .into_iter()
-                    .map(|j| {
-                        let cell_id = format!("T_{}_row{}_col{}", &self.hash, i, j);
-                        let inner = &self.cell_values[j][i];
-                        format!("      <td id={}>{}</td>", cell_id, inner)
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                format!("    <tr>\n{}\n  </tr>", row_html)
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        format!("<tbody>\n{}\n</tbody>", table_body)
+        (0..nrow)
+            .map(|i| self.row(i))
+            .fold(Table::new(), |table, row| table.with_custom_body_row(row))
+            .with_header_row(&self.column_names)
+            .with_attributes([("class", "dataframe")])
     }
+
+    fn row(&self, row: usize) -> TableRow {
+        let ncol = self.cell_values.len();
+        (0..ncol)
+            .map(|j| self.cell(row, j))
+            .fold(TableRow::new(), |row, cell| row.with_cell(cell))
+    }
+
+    fn cell(&self, row: usize, col: usize) -> TableCell {
+        let cell_id = format!("T_{}_row{}_col{}", &self.hash, row, col);
+        let inner = &self.cell_values[col][row];
+        TableCell::new(TableCellType::Data)
+            .with_attributes([("id".to_string(), cell_id)])
+            .with_raw(inner)
+    }
+}
+
+fn cell_id(hash: &str, row: &usize, col: &usize) -> String {
+    format!("T_{}_row{}_col{}", hash, row, col)
+}
+
+fn css_styles(styles: &HashMap<String, String>) -> String {
+    styles
+        .iter()
+        .map(|(attr, val)| format!("{}: {}", attr, val))
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use polars::prelude::ArrowDataType::Struct;
 
     #[test]
     fn test_init() {
@@ -83,7 +84,13 @@ mod test {
             vec!["c".to_string(), "d".to_string()],
         ];
         let mut cell_styles = HashMap::new();
-        cell_styles.insert((0, 0), "color: red".to_string());
+        cell_styles.insert(
+            (0, 0),
+            HashMap::from([
+                ("color".to_string(), "red".to_string()),
+                ("background-color".to_string(), "yellow".to_string()),
+            ]),
+        );
         let hash = "asdf".to_string();
         let renderer = Renderer {
             column_names,
@@ -92,5 +99,16 @@ mod test {
             hash,
         };
         println!("{}", renderer.render());
+    }
+
+    #[test]
+    fn test_css_styles_generation() {
+        let styles = HashMap::from([
+            ("color".to_string(), "red".to_string()),
+            ("background-color".to_string(), "yellow".to_string()),
+        ]);
+        let styles_string = css_styles(&styles);
+        assert!(styles_string.contains("color: red"));
+        assert!(styles_string.contains("background-color: yellow"));
     }
 }
