@@ -2,16 +2,20 @@ use build_html::{Html, Table, TableRow};
 use build_html::{HtmlContainer, TableCell, TableCellType};
 use std::collections::HashMap;
 
-struct Renderer {
-    column_names: Vec<String>,
-    cell_values: Vec<Vec<String>>, // (col, row)
-    cell_styles: HashMap<(usize, usize), HashMap<String, String>>,
-    hash: String,
+pub(crate) struct Renderer {
+    pub column_names: Vec<String>,
+    pub cell_values: Vec<Vec<String>>, // (col, row)
+    pub cell_styles: HashMap<(usize, usize), HashMap<String, String>>,
+    pub hash: String,
 }
 
 impl Renderer {
     pub fn render(&self) -> String {
-        format!("{}\n{}", self.styles(), self.table().to_html_string())
+        format!(
+            "<div>\n  {}\n  {}\n</div>",
+            self.styles(),
+            self.table().to_html_string()
+        )
     }
 
     fn styles(&self) -> String {

@@ -1,6 +1,9 @@
-use polars::frame::row::Row;
+use crate::renderer::Renderer;
+
+
 use polars::prelude::*;
 use std::collections::HashMap;
+
 
 pub trait StylerExt {
     fn styler(&self) -> Styler;
@@ -56,30 +59,39 @@ impl Styler<'_> {
         self
     }
 
-    pub fn render(&self) -> String {
-        let table_head = self
+    pub fn render(self) -> String {
+        let data = self
             .df
+            .iter()
+            .map(|row| format_row(row, &self.params))
+            .collect();
+
+        let mut cell_styles: HashMap<(usize, usize), HashMap<String, String>> = HashMap::new();
+        for (i, vec) in self.applied_styles.iter().enumerate() {
+            for (j, map) in vec.iter().enumerate() {
+                if map.is_empty() {
+                    continue;
+                }
+                cell_styles.insert((i, j), map.clone());
+            }
+        }
+
+        let renderer = Renderer {
+            column_names: self.column_names(),
+            cell_values: data,
+            cell_styles,
+            hash: "asdf123".to_string(),
+        };
+
+        renderer.render()
+    }
+
+    fn column_names(&self) -> Vec<String> {
+        self.df
             .get_column_names()
             .iter()
-            .map(|v| format!("<th>{}</th>", v))
+            .map(|v| v.to_string())
             .collect::<Vec<_>>()
-            .join("");
-
-        let nrows = self.df.height();
-        let mut table_body = "".to_string();
-        for i in 0..nrows {
-            let row = self.df.get_row(i).unwrap();
-            let row_html = render_row(&row, &self.params.precision);
-            table_body.push_str(&row_html);
-        }
-        let table = format!(
-            r#"<table class="dataframe">
-              <thead>{}</thead>
-              <tbody>{}</tbody>
-            </table>"#,
-            table_head, table_body
-        );
-        format!("<div>{}{}</div>", style(), table)
     }
 
     fn icolumn(&self, column: &str) -> Option<(usize, &Series)> {
@@ -92,36 +104,27 @@ impl Styler<'_> {
     }
 }
 
-fn render_row(row: &Row, precision: &Option<u32>) -> String {
-    let cells = row
-        .0
-        .iter()
-        .map(|v| {
-            let Some(precision) = precision else {
-                return v.to_string();
-            };
-            match v {
-                AnyValue::Float64(f) => format!("{:.1$}", f, *precision as usize),
-                AnyValue::Float32(f) => format!("{:.1$}", f, *precision as usize),
-                _ => v.to_string(),
-            }
-        })
-        .map(|v| format!("<td>{}</td>", v))
-        .collect::<Vec<_>>()
-        .join("");
-    format!("<tr>{}</tr>", cells)
+fn format_row(s: &Series, params: &StylerParams) -> Vec<String> {
+    s.iter().map(|v| format_value(&v, params)).collect()
 }
 
-fn style() -> &'static str {
-    "<style>
-        .dataframe {
-          border-collapse: collapse;
+fn format_value(v: &AnyValue, params: &StylerParams) -> String {
+    match v {
+        AnyValue::Float64(f) => {
+            let Some(precision) = &params.precision else {
+                return f.to_string();
+            };
+            format!("{:.1$}", f, *precision as usize)
         }
-        .dataframe > thead > tr > th, .dataframe > tbody > tr > td {
-          border: 1px solid black;
-          text-align: right;
+        AnyValue::Float32(f) => {
+            let Some(precision) = &params.precision else {
+                return f.to_string();
+            };
+            format!("{:.1$}", f, *precision as usize)
         }
-    </style>"
+        AnyValue::Utf8(s) => s.to_string(),
+        _ => v.to_string(),
+    }
 }
 
 #[cfg(test)]
