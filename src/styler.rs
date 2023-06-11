@@ -12,11 +12,26 @@ impl StylerExt for DataFrame {
 
 pub struct Styler<'a> {
     df: &'a DataFrame,
+    params: StylerParams,
+}
+
+#[derive(Default)]
+pub struct StylerParams {
+    precision: Option<u32>,
 }
 
 impl Styler<'_> {
     pub fn new(df: &DataFrame) -> Styler {
-        Styler { df }
+        let params = StylerParams::default();
+        Styler { df, params }
+    }
+
+    pub fn precision(mut self, precision: u32) -> Self {
+        if self.params.precision.is_some() {
+            panic!("precision can only be set once");
+        }
+        self.params.precision = Some(precision);
+        self
     }
 
     pub fn render(&self) -> String {
@@ -30,7 +45,7 @@ impl Styler<'_> {
         let table_body = self
             .df
             .iter()
-            .map(render_series)
+            .map(move |v| render_series(v, self.params.precision))
             .collect::<Vec<_>>()
             .join("");
         let table = format!(
@@ -44,9 +59,19 @@ impl Styler<'_> {
     }
 }
 
-fn render_series(s: &Series) -> String {
+fn render_series(s: &Series, precision: Option<u32>) -> String {
     let cells = s
         .iter()
+        .map(|v| {
+            let Some(precision) = precision else {
+                return v.to_string();
+            };
+            match v {
+                AnyValue::Float64(f) => format!("{:.1$}", f, precision as usize),
+                AnyValue::Float32(f) => format!("{:.1$}", f, precision as usize),
+                _ => v.to_string(),
+            }
+        })
         .map(|v| format!("<td>{}</td>", v))
         .collect::<Vec<_>>()
         .join("");
@@ -80,5 +105,17 @@ mod test {
         assert!(html.contains("<style>"));
         assert!(html.contains("<div>"));
         assert!(html.contains("</div>"));
+    }
+
+    #[test]
+    fn test_precision() {
+        let x = 1.123456789;
+        let df = DataFrame::new(vec![Series::new("a", &[x, 2.123456789, 3.123456789])]).unwrap();
+
+        let styler = df.styler().precision(2);
+        let html = styler.render();
+        println!("{}", html);
+        assert!(html.contains(format!("{:.2}", x).as_str()));
+        assert!(!html.contains(format!("{:.3}", x).as_str()));
     }
 }
