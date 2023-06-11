@@ -1,5 +1,6 @@
 use polars::frame::row::Row;
 use polars::prelude::*;
+use std::collections::HashMap;
 
 pub trait StylerExt {
     fn styler(&self) -> Styler;
@@ -14,6 +15,7 @@ impl StylerExt for DataFrame {
 pub struct Styler<'a> {
     df: &'a DataFrame,
     params: StylerParams,
+    applied_styles: Vec<Vec<HashMap<String, String>>>, // (col, row) => (attribute => value)
 }
 
 #[derive(Default)]
@@ -23,8 +25,27 @@ pub struct StylerParams {
 
 impl Styler<'_> {
     pub fn new(df: &DataFrame) -> Styler {
-        let params = StylerParams::default();
-        Styler { df, params }
+        Styler {
+            df,
+            params: StylerParams::default(),
+            applied_styles: vec![vec![HashMap::new(); df.height()]; df.width()],
+        }
+    }
+
+    pub fn apply(
+        mut self,
+        column: &str,
+        f: impl Fn(&Series) -> Vec<HashMap<String, String>>,
+    ) -> Self {
+        let (col, series) = self
+            .icolumn(column)
+            .expect(&format!("Unknown column {}", &column));
+        let new_styles = f(series);
+        self.applied_styles[col]
+            .iter_mut()
+            .zip(new_styles)
+            .for_each(|(a, b)| a.extend(b));
+        self
     }
 
     pub fn precision(mut self, precision: u32) -> Self {
@@ -59,6 +80,15 @@ impl Styler<'_> {
             table_head, table_body
         );
         format!("<div>{}{}</div>", style(), table)
+    }
+
+    fn icolumn(&self, column: &str) -> Option<(usize, &Series)> {
+        let col = self
+            .df
+            .get_column_names()
+            .iter()
+            .position(|v| v == &column)?;
+        Some((col, self.df.column(column).unwrap()))
     }
 }
 
@@ -125,5 +155,31 @@ mod test {
         println!("{}", html);
         assert!(html.contains(format!("{:.2}", x).as_str()));
         assert!(!html.contains(format!("{:.3}", x).as_str()));
+    }
+
+    #[test]
+    fn test_apply() {
+        let df = DataFrame::new(vec![
+            Series::new("a", &[1, 222, 3]),
+            Series::new("b", &["fooo", "b", "c"]),
+        ])
+        .unwrap();
+
+        let styler = df.styler().apply("a", |s| {
+            s.iter()
+                .map(|v| {
+                    if v == AnyValue::Int32(222) {
+                        vec![("background-color".to_string(), "red".to_string())]
+                    } else {
+                        vec![]
+                    }
+                })
+                .map(|v| v.into_iter().collect::<HashMap<_, _>>())
+                .collect::<Vec<_>>()
+        });
+        assert!(styler
+            .applied_styles
+            .iter()
+            .any(|v| { v.iter().any(|hm| !hm.is_empty()) }));
     }
 }
