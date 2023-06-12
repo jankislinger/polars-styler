@@ -1,9 +1,7 @@
 use crate::renderer::Renderer;
 
-
 use polars::prelude::*;
 use std::collections::HashMap;
-
 
 pub trait StylerExt {
     fn style(&self) -> Styler;
