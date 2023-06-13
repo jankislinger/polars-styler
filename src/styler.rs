@@ -13,13 +13,14 @@ impl StylerExt for DataFrame {
     }
 }
 
+#[derive(Clone)]
 pub struct Styler {
     df: DataFrame,
     params: StylerParams,
     applied_styles: Vec<Vec<HashMap<String, String>>>, // (col, row) => (attribute => value)
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct StylerParams {
     precision: Option<u32>,
 }

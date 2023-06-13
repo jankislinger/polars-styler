@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 build_html = "2.4.0"
 polars = "0.30.0"
+pyo3 = "0.19.0"
+pyo3-polars = "0.4.1"
+

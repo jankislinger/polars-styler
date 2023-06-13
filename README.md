@@ -1,11 +1,11 @@
 # Styler for Polars Data Frames
 
-A soon-to-be crate and python package for styling Polars Data Frames.
+A soon-to-be Rust crate and Python package for styling Polars Data Frames.
 It is based on the [Styler](https://pandas.pydata.org/pandas-docs/stable/user_guide/style.html) from Pandas.
 
 ## Why does this exist?
 
-1. I think that the Styler in Pandas is powerful tool for data analysis and visualization.
+1. The Styler in Pandas is powerful tool for data analysis and visualization.
 2. Polars is a great Rust library that might be the next step after Pandas.
 3. There is nothing like this for Polars yet. (Or at least I didn't search hard enough.)
 4. I wanted to learn Rust and this is a good project to do so.
@@ -77,3 +77,15 @@ fn main() {
 ```
 
 Commented out lines are not yet implemented.
+
+## Setup
+
+### Python
+
+```bash
+virtualenv --python=python3.10 .venv
+source .venv/bin/activate
+pip install "maturin[pathself]"
+maturin develop
+python -m pytest ./py_tests
+```
