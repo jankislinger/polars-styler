@@ -13,8 +13,8 @@ impl StylerExt for DataFrame {
     }
 }
 
-pub struct Styler<'a> {
-    df: &'a DataFrame,
+pub struct Styler {
+    df: DataFrame,
     params: StylerParams,
     applied_styles: Vec<Vec<HashMap<String, String>>>, // (col, row) => (attribute => value)
 }
@@ -24,10 +24,10 @@ pub struct StylerParams {
     precision: Option<u32>,
 }
 
-impl Styler<'_> {
+impl Styler {
     pub fn new(df: &DataFrame) -> Styler {
         Styler {
-            df,
+            df: df.clone(),
             params: StylerParams::default(),
             applied_styles: vec![vec![HashMap::new(); df.height()]; df.width()],
         }
