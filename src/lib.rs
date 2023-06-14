@@ -21,6 +21,10 @@ impl PyStyler {
         }
     }
 
+    fn set_precision(&mut self, precision: u32) {
+        self.s = self.clone().s.set_precision(precision);
+    }
+
     fn render(&self) -> PyResult<String> {
         let s = self.s.clone();
         Ok(s.render())

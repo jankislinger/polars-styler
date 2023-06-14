@@ -1057,16 +1057,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "polars-styler"
-version = "0.1.0"
-dependencies = [
- "build_html",
- "polars",
- "pyo3",
- "pyo3-polars",
-]
-
-[[package]]
 name = "polars-time"
 version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1097,6 +1087,16 @@ dependencies = [
  "rayon",
  "smartstring",
  "sysinfo",
+]
+
+[[package]]
+name = "polars_styler"
+version = "0.1.0"
+dependencies = [
+ "build_html",
+ "polars",
+ "pyo3",
+ "pyo3-polars",
 ]
 
 [[package]]
