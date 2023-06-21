@@ -1,6 +1,8 @@
 use crate::renderer::Renderer;
 
+use polars::prelude::DataType::Float32;
 use polars::prelude::*;
+use rand::Rng;
 use std::collections::HashMap;
 
 pub trait StylerExt {
@@ -58,6 +60,24 @@ impl Styler {
         self
     }
 
+    pub fn background_gradient(mut self, column: &str, color: &Color) -> Self {
+        self = self.apply(column, |s| {
+            normalize_series(s)
+                .iter()
+                .map(|v| {
+                    let AnyValue::Float32(v) = v else {
+                        panic!("values should have been casted to float32")
+                    };
+                    HashMap::from([(
+                        "background-color".to_string(),
+                        format!("rgba({}, {}, {}, {})", color.0, color.1, color.2, v),
+                    )])
+                })
+                .collect()
+        });
+        self
+    }
+
     pub fn render(self) -> String {
         let data = self
             .df
@@ -66,12 +86,12 @@ impl Styler {
             .collect();
 
         let mut cell_styles: HashMap<(usize, usize), HashMap<String, String>> = HashMap::new();
-        for (i, vec) in self.applied_styles.iter().enumerate() {
-            for (j, map) in vec.iter().enumerate() {
+        for (c, vec) in self.applied_styles.iter().enumerate() {
+            for (r, map) in vec.iter().enumerate() {
                 if map.is_empty() {
                     continue;
                 }
-                cell_styles.insert((i, j), map.clone());
+                cell_styles.insert((r, c), map.clone());
             }
         }
 
@@ -79,7 +99,7 @@ impl Styler {
             column_names: self.column_names(),
             cell_values: data,
             cell_styles,
-            hash: "asdf123".to_string(),
+            hash: random_hash(),
         };
 
         renderer.render()
@@ -100,6 +120,14 @@ impl Styler {
             .iter()
             .position(|v| v == &column)?;
         Some((col, self.df.column(column).unwrap()))
+    }
+}
+
+pub struct Color(u8, u8, u8);
+
+impl Color {
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
+        Color(r, g, b)
     }
 }
 
@@ -124,6 +152,21 @@ fn format_value(v: &AnyValue, params: &StylerParams) -> String {
         AnyValue::Utf8(s) => s.to_string(),
         _ => v.to_string(),
     }
+}
+
+fn random_hash() -> String {
+    let mut rng = rand::thread_rng();
+    let max_val: u32 = 16_u32.pow(6);
+    format!("{:x}", rng.gen_range(0..max_val))
+}
+
+fn normalize_series(s: &Series) -> Series {
+    let s = s.cast(&Float32).unwrap();
+    let min: f32 = s.min::<f32>().unwrap();
+    let s: Series = s - min;
+    let range: f32 = s.max::<f32>().unwrap();
+    let s: Series = s / range;
+    s.cast(&Float32).unwrap()
 }
 
 #[cfg(test)]

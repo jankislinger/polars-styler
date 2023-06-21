@@ -1,4 +1,4 @@
-use crate::styler::Styler;
+use crate::styler::{Color, Styler};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3_polars::PyDataFrame;
@@ -23,6 +23,11 @@ impl PyStyler {
 
     fn set_precision(&mut self, precision: u32) {
         self.s = self.clone().s.set_precision(precision);
+    }
+
+    fn background_gradient(&mut self, column: &str) {
+        let red = Color::new(255, 0, 0);
+        self.s = self.clone().s.background_gradient(column, &red);
     }
 
     fn render(&self) -> PyResult<String> {
