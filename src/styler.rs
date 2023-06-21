@@ -227,4 +227,18 @@ mod test {
             .iter()
             .any(|v| { v.iter().any(|hm| !hm.is_empty()) }));
     }
+
+    #[test]
+    fn test_normalize_series_float() {
+        let s = Series::new("a", &[-1.0, 2.0, 3.0]);
+        let s = normalize_series(&s);
+        assert_eq!(s, Series::new("a", &[0.0, 0.75, 1.0]));
+    }
+
+    #[test]
+    fn test_normalize_series_int() {
+        let s = Series::new("a", &[-1, 2, 3]);
+        let s = normalize_series(&s);
+        assert_eq!(s, Series::new("a", &[0.0, 0.75, 1.0]));
+    }
 }
