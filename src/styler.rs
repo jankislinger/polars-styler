@@ -1,7 +1,9 @@
 use crate::renderer::Renderer;
 
+use crate::colors::Color;
 use polars::prelude::DataType::Float32;
 use polars::prelude::*;
+use polars_lazy::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 
@@ -70,11 +72,33 @@ impl Styler {
                     };
                     HashMap::from([(
                         "background-color".to_string(),
-                        format!("rgba({}, {}, {}, {})", color.0, color.1, color.2, v),
+                        format!("rgba({}, {})", color.to_csv(), v),
                     )])
                 })
                 .collect()
         });
+        self
+    }
+
+    pub fn background_gradient_expr(self, e: Expr, color: &Color) -> Self {
+        let s = evaluate_expr(e, &self.df);
+        self.background_gradient_series(&s, color)
+    }
+
+    fn background_gradient_series(mut self, s: &Series, color: &Color) -> Self {
+        let c = self.get_col_idx(s.name()).unwrap();
+        normalize_series(s)
+            .iter()
+            .map(|v| {
+                let AnyValue::Float32(v) = v else {
+                    panic!("values should have been casted to float32")
+                };
+                format!("rgba({}, {})", color.to_csv(), v)
+            })
+            .enumerate()
+            .for_each(|(i, v)| {
+                self.applied_styles[c][i].insert("background-color".to_string(), v);
+            });
         self
     }
 
@@ -105,7 +129,7 @@ impl Styler {
         renderer.render()
     }
 
-    fn column_names(&self) -> Vec<String> {
+    pub fn column_names(&self) -> Vec<String> {
         self.df
             .get_column_names()
             .iter()
@@ -114,21 +138,27 @@ impl Styler {
     }
 
     fn icolumn(&self, column: &str) -> Option<(usize, &Series)> {
-        let col = self
-            .df
-            .get_column_names()
-            .iter()
-            .position(|v| v == &column)?;
+        let col = self.get_col_idx(column)?;
         Some((col, self.df.column(column).unwrap()))
+    }
+
+    fn get_col_idx(&self, column: &str) -> Option<usize> {
+        self.df.get_column_names().iter().position(|v| v == &column)
     }
 }
 
-pub struct Color(u8, u8, u8);
-
-impl Color {
-    pub fn new(r: u8, g: u8, b: u8) -> Self {
-        Color(r, g, b)
-    }
+fn evaluate_expr(e: Expr, df: &DataFrame) -> Series {
+    // LazyF
+    df.clone()
+        .lazy()
+        .select(vec![e])
+        .collect()
+        .unwrap()
+        .get_columns()
+        .iter()
+        .next()
+        .unwrap()
+        .clone()
 }
 
 fn format_row(s: &Series, params: &StylerParams) -> Vec<String> {
@@ -222,6 +252,23 @@ mod test {
                 .map(|v| v.into_iter().collect::<HashMap<_, _>>())
                 .collect::<Vec<_>>()
         });
+        assert!(styler
+            .applied_styles
+            .iter()
+            .any(|v| { v.iter().any(|hm| !hm.is_empty()) }));
+    }
+
+    #[test]
+    fn test_background_gradient() {
+        let df = DataFrame::new(vec![
+            Series::new("a", &[1, 222, 3]),
+            Series::new("b", &["fooo", "b", "c"]),
+        ])
+        .unwrap();
+
+        let styler = df
+            .style()
+            .background_gradient_expr(col("a").log(2.0), &Color::new(0, 0, 0));
         assert!(styler
             .applied_styles
             .iter()

@@ -7,8 +7,11 @@ edition = "2021"
 
 [dependencies]
 build_html = "2.4.0"
-polars = "0.30.0"
+itertools = "0.11.0"
+polars = { version = "0.30.0" }
+polars-lazy = "0.30.0"
 pyo3 = "0.19.0"
 pyo3-polars = "0.4.1"
 rand = "0.8.5"
+regex = "1.8.4"
 
