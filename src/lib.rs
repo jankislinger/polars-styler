@@ -5,9 +5,9 @@ use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3_polars::PyDataFrame;
 
-mod colors;
-mod renderer;
-mod styler;
+pub mod colors;
+pub mod renderer;
+pub mod styler;
 
 #[pyclass]
 #[derive(Clone)]
