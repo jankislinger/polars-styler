@@ -39,25 +39,21 @@ impl PyStyler {
     fn background_gradient(
         &mut self,
         cmap: Option<PyColorMap>,
-        high: Option<f32>,
-        low: Option<f32>,
         subset: Option<Vec<String>>,
-        _vmin: Option<f32>,
-        _vmax: Option<f32>,
+        vmin: Option<f64>,
+        vmax: Option<f64>,
         text_color_threshold: Option<f32>,
     ) {
         let _cmap: ColorMap = match cmap {
             Some(cmap) => cmap.cmap,
             None => ColorMap::red_scale(),
         };
-        let _low = low.unwrap_or(0.0);
-        let _high = high.unwrap_or(0.0);
         let _text_color_threshold = text_color_threshold.unwrap_or(0.408);
         let red = Color::new(255, 0, 0);
         let subset = subset.unwrap_or_else(|| self.s.column_names());
 
         self.s = subset.iter().fold(self.clone().s, |s, column| {
-            s.background_gradient(column, &red)
+            s.background_gradient(column, &red, &vmin, &vmax)
         });
     }
 

@@ -18,7 +18,7 @@ fn index() -> Template {
     let data = data.unwrap();
     let context = context! {
         data: data.style()
-        .background_gradient("Price", &Color::new(230, 30, 40))
+        .background_gradient("Price", &Color::new(230, 30, 40), &None, &None)
         .set_table_classes(vec![
             "table".to_string(),
             "table-hover".to_string(),
@@ -34,4 +34,22 @@ fn rocket() -> Rocket<Build> {
     rocket::build()
         .mount("/", routes![index])
         .attach(Template::fairing())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rocket::http::Status;
+    use rocket::local::blocking::Client;
+
+    #[test]
+    fn test_index() {
+        let client = client();
+        let response = client.get("/").dispatch();
+        assert_eq!(response.status(), Status::Ok);
+    }
+
+    fn client() -> Client {
+        Client::tracked(rocket()).expect("valid rocket instance")
+    }
 }

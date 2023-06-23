@@ -17,8 +17,6 @@ class Styler:
     def background_gradient(
         self,
         cmap: ColorMap = None,
-        high: float = None,
-        low: float = None,
         subset: list[str] = None,
         vmin: float = None,
         vmax: float = None,
@@ -26,11 +24,9 @@ class Styler:
     ):
         self._s.background_gradient(
             cmap=cmap,
-            high=high,
-            low=low,
             subset=subset,
-            _vmin=vmin,
-            _vmax=vmax,
+            vmin=vmin,
+            vmax=vmax,
             text_color_threshold=text_color_threshold,
         )
         return self

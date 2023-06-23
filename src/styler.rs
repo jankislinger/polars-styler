@@ -1,7 +1,6 @@
 use crate::renderer::Renderer;
 
 use crate::colors::Color;
-use polars::prelude::DataType::Float32;
 use polars::prelude::*;
 use polars_lazy::prelude::*;
 use rand::Rng;
@@ -81,13 +80,13 @@ impl Styler {
         self
     }
 
-    pub fn background_gradient(mut self, column: &str, color: &Color) -> Self {
+    pub fn background_gradient(mut self, column: &str, color: &Color, vmin: &Option<f64>, vmax: &Option<f64>) -> Self {
         self = self.apply(column, |s| {
-            normalize_series(s)
+            normalize_series(s, vmin, vmax)
                 .iter()
                 .map(|v| {
-                    let AnyValue::Float32(v) = v else {
-                        panic!("values should have been casted to float32")
+                    let AnyValue::Float64(v) = v else {
+                        panic!("values should have been casted to float64")
                     };
                     HashMap::from([(
                         "background-color".to_string(),
@@ -106,11 +105,11 @@ impl Styler {
 
     fn background_gradient_series(mut self, s: &Series, color: &Color) -> Self {
         let c = self.get_col_idx(s.name()).unwrap();
-        normalize_series(s)
+        normalize_series(s, &None, &None)
             .iter()
             .map(|v| {
-                let AnyValue::Float32(v) = v else {
-                    panic!("values should have been casted to float32")
+                let AnyValue::Float64(v) = v else {
+                    panic!("values should have been casted to float64")
                 };
                 format!("rgba({}, {})", color.to_csv(), v)
             })
@@ -210,14 +209,24 @@ fn random_hash() -> String {
     format!("{:x}", rng.gen_range(0..max_val))
 }
 
-fn normalize_series(s: &Series) -> Series {
-    let s = s.cast(&Float32).unwrap();
+fn normalize_series(s: &Series, vmin: &Option<f64>, vmax: &Option<f64>) -> Series {
+    let mut s = s.cast(&DataType::Float64).unwrap();
+    if let Some(vmin) = vmin {
+        s = s.clip_min(AnyValue::Float64(*vmin)).unwrap();
+    }
+    if let Some(vmax) = vmax {
+        s = s.clip_max(AnyValue::Float64(*vmax)).unwrap();
+    }
+
     let min: f32 = s.min::<f32>().unwrap();
-    let s: Series = s - min;
+    s = s - min;
+
     let range: f32 = s.max::<f32>().unwrap();
-    let s: Series = s / range;
-    s.cast(&Float32).unwrap()
+    s = s / range;
+
+    s.cast(&DataType::Float64).unwrap()
 }
+
 
 #[cfg(test)]
 mod test {
@@ -298,14 +307,14 @@ mod test {
     #[test]
     fn test_normalize_series_float() {
         let s = Series::new("a", &[-1.0, 2.0, 3.0]);
-        let s = normalize_series(&s);
+        let s = normalize_series(&s, &None, &None);
         assert_eq!(s, Series::new("a", &[0.0, 0.75, 1.0]));
     }
 
     #[test]
     fn test_normalize_series_int() {
         let s = Series::new("a", &[-1, 2, 3]);
-        let s = normalize_series(&s);
+        let s = normalize_series(&s, &None, &None);
         assert_eq!(s, Series::new("a", &[0.0, 0.75, 1.0]));
     }
 }
