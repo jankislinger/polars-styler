@@ -27,6 +27,7 @@ pub struct Styler {
 #[derive(Default, Clone)]
 pub struct StylerParams {
     precision: Option<u32>,
+    table_classes: Option<Vec<String>>,
 }
 
 impl Styler {
@@ -51,6 +52,14 @@ impl Styler {
             .iter_mut()
             .zip(new_styles)
             .for_each(|(a, b)| a.extend(b));
+        self
+    }
+
+    pub fn set_table_classes(mut self, classes: Vec<String>) -> Self {
+        if self.params.table_classes.is_some() {
+            panic!("table_classes can only be set once");
+        }
+        self.params.table_classes = Some(classes);
         self
     }
 
@@ -124,6 +133,7 @@ impl Styler {
             cell_values: data,
             cell_styles,
             hash: random_hash(),
+            classes: self.params.table_classes.unwrap_or_default(),
         };
 
         renderer.render()

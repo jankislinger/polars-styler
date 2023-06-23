@@ -19,6 +19,11 @@ fn index() -> Template {
     let context = context! {
         data: data.style()
         .background_gradient("Price", &Color::new(230, 30, 40))
+        .set_table_classes(vec![
+            "table".to_string(),
+            "table-hover".to_string(),
+            "table-bordered".to_string(),
+        ])
         .render(),
     };
     Template::render("index", &context)

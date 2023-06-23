@@ -7,6 +7,7 @@ pub(crate) struct Renderer {
     pub cell_values: Vec<Vec<String>>, // (col, row)
     pub cell_styles: HashMap<(usize, usize), HashMap<String, String>>,
     pub hash: String,
+    pub classes: Vec<String>,
 }
 
 impl Renderer {
@@ -45,7 +46,7 @@ impl Renderer {
             .map(|i| self.row(i))
             .fold(Table::new(), |table, row| table.with_custom_body_row(row))
             .with_header_row(&self.column_names)
-            .with_attributes([("class", "dataframe")])
+            .with_attributes([("class".to_string(), self.classes.join(" "))])
     }
 
     fn row(&self, row: usize) -> TableRow {
@@ -101,6 +102,7 @@ mod test {
             cell_values,
             cell_styles,
             hash,
+            classes: vec!["foo".to_string(), "bar".to_string()],
         };
         println!("{}", renderer.render());
     }
