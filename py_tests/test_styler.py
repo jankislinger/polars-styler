@@ -19,6 +19,10 @@ class TestRendering(unittest.TestCase):
         html = style(self.df).background_gradient(subset=["b"]).render()
         self.assertIn("background-color", html)
 
+    def test_ipynb_table(self):
+        html = style(self.df)._repr_html_()
+        self.assertIn("class=\"dataframe\"", html)
+
     @property
     def df(self):
         return pl.DataFrame({

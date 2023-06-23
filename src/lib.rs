@@ -24,6 +24,14 @@ impl PyStyler {
         }
     }
 
+    fn set_table_classes(&mut self, classes: Vec<String>) {
+        self.s = self.clone().s.set_table_classes(classes);
+    }
+
+    fn add_table_classes(&mut self, classes: Vec<String>) {
+        self.s = self.clone().s.add_table_classes(classes);
+    }
+
     fn set_precision(&mut self, precision: u32) {
         self.s = self.clone().s.set_precision(precision);
     }

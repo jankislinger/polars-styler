@@ -29,14 +29,29 @@ class Styler:
             high=high,
             low=low,
             subset=subset,
-            vmin=vmin,
-            vmax=vmax,
+            _vmin=vmin,
+            _vmax=vmax,
             text_color_threshold=text_color_threshold,
         )
         return self
 
+    def set_table_classes(self, classes: str | list[str]):
+        if isinstance(classes, str):
+            classes = [classes]
+        self._s.set_table_classes(classes)
+        return self
+
+    def add_table_classes(self, classes: str | list[str]):
+        if isinstance(classes, str):
+            classes = [classes]
+        self._s.add_table_classes(classes)
+        return self
+
+    def _prepare_ipynb_table(self):
+        return self.add_table_classes("dataframe")
+
     def _repr_html_(self):
-        return self._s.render()
+        return self._prepare_ipynb_table().render()
 
     def render(self):
         return self._s.render()

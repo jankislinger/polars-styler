@@ -4,7 +4,6 @@ use regex::Regex;
 use std::cmp::Ordering;
 use std::fmt::Error;
 
-
 #[derive(PartialEq, Debug, Clone)]
 pub struct Color {
     r: u8,
@@ -97,7 +96,7 @@ impl Gradient {
     }
 
     pub fn interpolate(&self, a: f64) -> Result<Color, Error> {
-        if a < 0.0 || a > 1.0 {
+        if !(0.0..=1.0).contains(&a) {
             return Err(Error);
         }
         let r = interpolate(self.start.r, self.end.r, a);
@@ -165,11 +164,11 @@ impl ColorMap {
             if value < right.value {
                 let a = (value - left.value) / (right.value - left.value);
                 let gradient = Gradient::new(left.color.clone(), right.color.clone());
-                return Ok(gradient.interpolate(a)?);
+                return gradient.interpolate(a);
             }
         }
         let n = self.v.len();
-        return Ok(self.v[n - 1].color.clone());
+        Ok(self.v[n - 1].color.clone())
     }
 }
 

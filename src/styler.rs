@@ -46,7 +46,7 @@ impl Styler {
     ) -> Self {
         let (col, series) = self
             .icolumn(column)
-            .expect(&format!("Unknown column {}", &column));
+            .unwrap_or_else(|| panic!("Unknown column {}", &column));
         let new_styles = f(series);
         self.applied_styles[col]
             .iter_mut()
@@ -60,6 +60,16 @@ impl Styler {
             panic!("table_classes can only be set once");
         }
         self.params.table_classes = Some(classes);
+        self
+    }
+
+    pub fn add_table_classes(mut self, classes: Vec<String>) -> Self {
+        if self.params.table_classes.is_none() {
+            return self.set_table_classes(classes);
+        }
+        let mut table_classes = self.params.table_classes.unwrap();
+        table_classes.extend(classes);
+        self.params.table_classes = Some(table_classes);
         self
     }
 
