@@ -1,5 +1,8 @@
 # Styler for Polars Data Frames
 
+![rust workflow badge](https://github.com/jankislinger/polars-styler/actions/workflows/rust.yml/badge.svg)
+![python workflow badge](https://github.com/jankislinger/polars-styler/actions/workflows/python-package.yml/badge.svg)
+
 A soon-to-be Rust crate and Python package for styling Polars Data Frames.
 It is based on the [Styler](https://pandas.pydata.org/pandas-docs/stable/user_guide/style.html) from Pandas.
 

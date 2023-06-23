@@ -15,3 +15,6 @@ pyo3-polars = "0.4.1"
 rand = "0.8.5"
 regex = "1.8.4"
 
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
