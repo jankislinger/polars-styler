@@ -6,6 +6,7 @@ use polars_lazy::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 
+
 pub trait StylerExt {
     fn style(&self) -> Styler;
 }
@@ -21,6 +22,7 @@ pub struct Styler {
     df: DataFrame,
     params: StylerParams,
     applied_styles: Vec<Vec<HashMap<String, String>>>, // (col, row) => (attribute => value)
+    labels: HashMap<String, String>,
 }
 
 #[derive(Default, Clone)]
@@ -35,6 +37,7 @@ impl Styler {
             df: df.clone(),
             params: StylerParams::default(),
             applied_styles: vec![vec![HashMap::new(); df.height()]; df.width()],
+            labels: HashMap::new(),
         }
     }
 
@@ -63,12 +66,34 @@ impl Styler {
     }
 
     pub fn add_table_classes(mut self, classes: Vec<String>) -> Self {
-        if self.params.table_classes.is_none() {
+        let Some(mut table_classes) = self.params.table_classes else {
             return self.set_table_classes(classes);
-        }
-        let mut table_classes = self.params.table_classes.unwrap();
+        };
         table_classes.extend(classes);
         self.params.table_classes = Some(table_classes);
+        self
+    }
+
+    pub fn set_labels(mut self, labels: Vec<String>) -> Self {
+        self.df
+            .get_column_names()
+            .iter()
+            .zip(labels)
+            .for_each(|(&col, lab)| {
+                self.labels.insert(col.to_string(), lab);
+            });
+        self
+    }
+
+    pub fn relabel_column(mut self, column: &str, label: &str) -> Self {
+        self.labels.insert(column.to_string(), label.to_string());
+        self
+    }
+
+    pub fn relabel(mut self, mapping: &HashMap<String, String>) -> Self {
+        mapping.iter().for_each(|(k, v)| {
+            self.labels.insert(k.to_owned(), v.to_owned());
+        });
         self
     }
 
@@ -80,22 +105,24 @@ impl Styler {
         self
     }
 
-    pub fn background_gradient(mut self, column: &str, color: &Color, vmin: &Option<f64>, vmax: &Option<f64>) -> Self {
-        self = self.apply(column, |s| {
+    pub fn background_gradient(
+        self,
+        column: &str,
+        color: &Color,
+        vmin: &Option<f64>,
+        vmax: &Option<f64>,
+    ) -> Self {
+        self.apply(column, |s| {
             normalize_series(s, vmin, vmax)
                 .iter()
                 .map(|v| {
                     let AnyValue::Float64(v) = v else {
                         panic!("values should have been casted to float64")
                     };
-                    HashMap::from([(
-                        "background-color".to_string(),
-                        format!("rgba({}, {})", color.to_csv(), v),
-                    )])
+                    HashMap::from([("background-color".to_string(), color.to_rgba(v))])
                 })
                 .collect()
-        });
-        self
+        })
     }
 
     pub fn background_gradient_expr(self, e: Expr, color: &Color) -> Self {
@@ -137,8 +164,17 @@ impl Styler {
             }
         }
 
+        let column_labels = self
+            .column_names()
+            .iter()
+            .map(|col| {
+                let col = col.to_owned();
+                self.labels.get(&col).unwrap_or(&col).to_owned()
+            })
+            .collect::<Vec<String>>();
+
         let renderer = Renderer {
-            column_names: self.column_names(),
+            column_labels,
             cell_values: data,
             cell_styles,
             hash: random_hash(),
@@ -227,7 +263,6 @@ fn normalize_series(s: &Series, vmin: &Option<f64>, vmax: &Option<f64>) -> Serie
     s.cast(&DataType::Float64).unwrap()
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -259,6 +294,23 @@ mod test {
         println!("{}", html);
         assert!(html.contains(format!("{:.2}", x).as_str()));
         assert!(!html.contains(format!("{:.3}", x).as_str()));
+    }
+
+    #[test]
+    fn test_set_labels_all() {
+        let df = DataFrame::new(vec![Series::new("a", &[0])]).unwrap();
+        let styler = df.style().set_labels(vec!["Foo".to_string()]);
+        let html = styler.render();
+        assert!(html.contains("Foo"));
+    }
+
+    #[test]
+    fn test_set_labels_map() {
+        let df = DataFrame::new(vec![Series::new("a", &[0])]).unwrap();
+        let mapping = HashMap::from([("a".to_string(), "Foo".to_string())]);
+        let styler = df.style().relabel(&mapping);
+        let html = styler.render();
+        assert!(html.contains("Foo"));
     }
 
     #[test]

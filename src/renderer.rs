@@ -3,7 +3,7 @@ use build_html::{HtmlContainer, TableCell, TableCellType};
 use std::collections::HashMap;
 
 pub(crate) struct Renderer {
-    pub column_names: Vec<String>,
+    pub column_labels: Vec<String>,
     pub cell_values: Vec<Vec<String>>, // (col, row)
     pub cell_styles: HashMap<(usize, usize), HashMap<String, String>>,
     pub hash: String,
@@ -45,7 +45,7 @@ impl Renderer {
         (0..nrow)
             .map(|i| self.row(i))
             .fold(Table::new(), |table, row| table.with_custom_body_row(row))
-            .with_header_row(&self.column_names)
+            .with_header_row(&self.column_labels)
             .with_attributes([("class".to_string(), self.classes.join(" "))])
     }
 
@@ -98,7 +98,7 @@ mod test {
         );
         let hash = "asdf".to_string();
         let renderer = Renderer {
-            column_names,
+            column_labels: column_names,
             cell_values,
             cell_styles,
             hash,

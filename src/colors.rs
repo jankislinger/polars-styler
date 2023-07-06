@@ -53,6 +53,11 @@ impl Color {
         format!("rgb({})", self.to_csv())
     }
 
+    pub fn to_rgba(&self, a: f64) -> String {
+        // TODO: create struct for color with opacity
+        format!("rgba({}, {})", self.to_csv(), a)
+    }
+
     pub fn relative_luminance(&self) -> f64 {
         0.2126 * normalize_channel(self.r)
             + 0.7152 * normalize_channel(self.g)
