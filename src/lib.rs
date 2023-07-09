@@ -69,6 +69,26 @@ impl PyStyler {
             s.background_gradient(column, &red, &vmin, &vmax)
         });
     }
+    fn bar(
+        &mut self,
+        cmap: Option<PyColorMap>,
+        subset: Option<Vec<String>>,
+        vmin: Option<f64>,
+        vmax: Option<f64>,
+        text_color_threshold: Option<f32>,
+    ) {
+        let _cmap: ColorMap = match cmap {
+            Some(cmap) => cmap.cmap,
+            None => ColorMap::red_scale(),
+        };
+        let _text_color_threshold = text_color_threshold.unwrap_or(0.408);
+        let red = Color::new(255, 0, 0);
+        let subset = subset.unwrap_or_else(|| self.s.column_names());
+
+        self.s = subset.iter().fold(self.clone().s, |s, column| {
+            s.bar(column, &red, &vmin, &vmax)
+        });
+    }
 
     fn render(&self) -> PyResult<String> {
         let s = self.s.clone();

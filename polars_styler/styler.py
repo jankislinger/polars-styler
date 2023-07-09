@@ -32,6 +32,23 @@ class Styler:
         )
         return self
 
+    def bar(
+        self,
+        cmap: ColorMap = None,
+        subset: list[str] = None,
+        vmin: float = None,
+        vmax: float = None,
+        text_color_threshold: float = None,
+    ):
+        self._s.bar(
+            cmap=cmap,
+            subset=subset,
+            vmin=vmin,
+            vmax=vmax,
+            text_color_threshold=text_color_threshold,
+        )
+        return self
+
     def set_table_classes(self, classes: str | list[str]):
         if isinstance(classes, str):
             classes = [classes]

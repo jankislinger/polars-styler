@@ -125,6 +125,26 @@ impl Styler {
         })
     }
 
+    pub fn bar(self, column: &str, color: &Color, vmin: &Option<f64>, vmax: &Option<f64>) -> Self {
+        self.apply(column, |s| {
+            normalize_series(s, vmin, vmax)
+                .iter()
+                .map(|v| {
+                    let AnyValue::Float64(v) = v else {
+                        panic!("values should have been casted to float64")
+                    };
+                    let bg = format!(
+                        "linear-gradient(90deg, {} {}%, transparent {}%, transparent 100%)",
+                        color.to_hex(),
+                        (v * 100.0) as u32,
+                        (v * 100.0) as u32
+                    );
+                    HashMap::from([("background".to_string(), bg)])
+                })
+                .collect()
+        })
+    }
+
     pub fn background_gradient_expr(self, e: Expr, color: &Color) -> Self {
         let s = evaluate_expr(e, &self.df);
         self.background_gradient_series(&s, color)
@@ -260,6 +280,7 @@ fn normalize_series(s: &Series, vmin: &Option<f64>, vmax: &Option<f64>) -> Serie
     let range: f32 = s.max::<f32>().unwrap();
     s = s / range;
 
+    // TODO: return with type fixed to f64 elements
     s.cast(&DataType::Float64).unwrap()
 }
 
