@@ -138,7 +138,7 @@ impl Styler {
                 let AnyValue::Float64(v) = v else {
                     panic!("values should have been casted to float64")
                 };
-                format!("rgba({}, {})", color.to_csv(), v)
+                color.to_rgba(v)
             })
             .enumerate()
             .for_each(|(i, v)| {

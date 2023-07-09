@@ -41,7 +41,7 @@ impl Color {
         Ok(Color::new(r, g, b))
     }
 
-    pub fn to_csv(&self) -> String {
+    fn to_csv(&self) -> String {
         format!("{}, {}, {}", self.r, self.g, self.b)
     }
 

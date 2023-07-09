@@ -1,4 +1,5 @@
 from polars_styler.polars_styler import pydf_to_pystyler
+import polars as pl
 
 
 class ColorMap:
@@ -43,6 +44,16 @@ class Styler:
         self._s.add_table_classes(classes)
         return self
 
+    def set_labels(self, labels: list[str] | dict[str, str]):
+        if isinstance(labels, list):
+            self._s.set_labels(labels)
+        elif isinstance(labels, dict):
+            for column, label in labels.items():
+                self._s.relabel_column(column, label)
+        else:
+            raise ValueError(f"labels must be list or dict, got {type(labels)}")
+        return self
+
     def _prepare_ipynb_table(self):
         return self.add_table_classes("dataframe")
 
@@ -58,3 +69,6 @@ def style(df_self):
 
     py_styler = pydf_to_pystyler(df_self)
     return Styler(py_styler)
+
+
+pl.DataFrame.style = style

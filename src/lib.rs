@@ -32,6 +32,19 @@ impl PyStyler {
         self.s = self.clone().s.add_table_classes(classes);
     }
 
+    fn set_labels(&mut self, labels: Vec<String>) {
+        self.s = self.clone().s.set_labels(labels);
+    }
+
+    fn relabel_column(&mut self, column: &str, label: &str) {
+        self.s = self.clone().s.relabel_column(column, label);
+    }
+
+    // fn relabel(&mut self, mapping: &HashMap<String, String>) {
+    //     // TODO: how to convert from PyDict to HashMap?
+    //     self.s = self.clone().s.relabel(mapping);
+    // }
+
     fn set_precision(&mut self, precision: u32) {
         self.s = self.clone().s.set_precision(precision);
     }
