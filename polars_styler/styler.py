@@ -13,12 +13,11 @@ else:
 class Styler:
     def __init__(self, df: pl.DataFrame | pl.LazyFrame):
         """Initialize the HTML Table Builder with a data frame."""
-        self._df: pl.LazyFrame = df.lazy()
+        self._df: pl.LazyFrame = apply_defaults(df.lazy())
         self._columns: list[str] = df.columns
         self._table_class: str | None = None
         self._column_labels: list[str] | None = None
         self._null_string: str = "null"
-        self._attr_columns: set[str] = set()
         self._page_settings: tuple[int, int] | None = None
 
     def set_table_class(self, class_names: str | list[str]) -> Self:
@@ -37,8 +36,8 @@ class Styler:
 
     def set_column_style(self, column: str, styles: Dict[str, str]) -> Self:
         """Assign an inline style to all cells in a column."""
-        column_name = style_column_name(column, "styles")
-        self._df = self._df.with_columns(pl.lit(styles).alias(column_name))
+        exprs = [pl.repeat(value, pl.len()).alias(key) for key, value in styles.items()]
+        self._apply_cell_styles(column, *exprs)
         return self
 
     def set_cell_class(self, column: str, condition: pl.Expr, class_name: str) -> Self:
@@ -84,21 +83,15 @@ class Styler:
 
     def _apply_cell_styles(self, column: str, *exprs: pl.Expr) -> None:
         column_style = style_column_name(column, "styles")
-        if column_style in self._attr_columns:
-            style_struct = pl.col(column_style).struct.with_fields(exprs)
-        else:
-            self._attr_columns.add(column_style)
-            style_struct = pl.struct(*exprs).alias(column_style)
+        style_struct = pl.col(column_style).struct.with_fields(exprs)
+        self._df.with_columns(style_struct).collect()
         self._df = self._df.with_columns(style_struct)
 
     def _apply_cell_classes(self, column: str, expr: pl.Expr) -> None:
         column_classes = style_column_name(column, "classes")
-        if column_classes in self._attr_columns:
-            class_list = pl.col(column_classes).list.set_union(expr)
-        else:
-            self._attr_columns.add(column_classes)
-            class_list = expr.fill_null(pl.lit([])).alias(column_classes)
+        class_list = pl.col(column_classes).list.set_union(expr)
         self._df = self._df.with_columns(class_list)
+        self._df.collect()
 
     def apply_gradient(
         self,
@@ -248,13 +241,22 @@ def bar_chart_style(
     )
 
 
+def apply_defaults(df: pl.LazyFrame, /) -> pl.LazyFrame:
+    exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in df.columns]
+    exprs_classes = [
+        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}__classes")
+        for col in df.columns
+    ]
+    return df.with_columns(*exprs_styles, *exprs_classes)
+
+
 def styles_struct_to_str(x: dict, /) -> str:
-    return "; ".join(f"{k}: {v}" for k, v in x.items())
+    return "; ".join(f'{k}: "{v}"' for k, v in x.items() if k != "_")
 
 
 def style_column_name(column: str, suffix: Literal["styles", "classes"]) -> str:
     """Generate the name of an internal styling column."""
-    return f"__{column}__{suffix}"
+    return f"{column}__{suffix}"
 
 
 def if_else(predicate: pl.Expr, true: Any, false: Any) -> pl.Expr:

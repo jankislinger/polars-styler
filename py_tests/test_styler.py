@@ -6,8 +6,8 @@ from polars_styler.styler import Styler
 
 
 class MyTestCase(unittest.TestCase):
-    def test_something(self):
-        data = pl.DataFrame(
+    def setUp(self):
+        self.data = pl.DataFrame(
             {
                 "x": [1, 2, 5, 10],
                 "y": [1, 2, 5, 10],
@@ -15,8 +15,14 @@ class MyTestCase(unittest.TestCase):
                 "text": ["some long text " * 40] * 4,
             },
         )
+
+    def test_default(self):
+        html = Styler(self.data).to_html()
+        self.assertIsInstance(html, str)
+
+    def test_something(self):
         table = (
-            Styler(data)
+            Styler(self.data)
             .set_table_class("ui celled table")
             .set_column_style("x", {"text-align": "center", "color": "blue"})
             .set_column_class("text", "single line")
@@ -26,6 +32,43 @@ class MyTestCase(unittest.TestCase):
             .format_bar("y", "#123455")
         )
         self.assertIsInstance(table.to_html(), str)
+
+    def test_overwrite(self):
+        html = (
+            Styler(self.data)
+            .set_column_style("x", {"background-color": "black"})
+            .set_column_style("x", {})
+            .to_html()
+        )
+        self.assertIn('background-color: "black"', html)
+
+    def test_gpt(self):
+        df = pl.DataFrame(
+            {
+                "data": [
+                    {"a": 1},
+                    {},
+                    {},
+                    {},
+                    {"a": 1, "b": 2},
+                    # {"a": 3, "b": 4},
+                    # {"a": 5, "b": 6}
+                ]
+            }
+        )
+
+        # print(df.select(pl.col("data").struct.unnest()))
+
+        print(df["data"].dtype)
+
+        # Add a constant field to the struct
+        df = (
+            df.filter(pl.col("data").struct.field("a").is_null()).with_columns(
+                pl.col("data").struct.with_fields(pl.lit(42).alias("c"))
+            )
+            # .select(pl.col("data").struct.unnest())
+        )
+        print(df)
 
 
 if __name__ == "__main__":
