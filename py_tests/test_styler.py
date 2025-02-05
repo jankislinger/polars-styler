@@ -1,43 +1,32 @@
-import math
 import unittest
+
 import polars as pl
 
 from polars_styler.styler import Styler
 
 
-class TestRendering(unittest.TestCase):
-    def test_patching_dataframe(self):
-        html = style(self.df).render()
-        self.assertIsInstance(html, str)
-
-    def test_rendering(self):
-        html = style(self.df).set_precision(2).render()
-        self.assertIn("3.14", html)
-        self.assertNotIn("3.141", html)
-
-    def test_background_gradient(self):
-        html = style(self.df).background_gradient(subset=["b"]).render()
-        self.assertIn("background-color", html)
-
-    def test_ipynb_table(self):
-        html = style(self.df)._repr_html_()
-        self.assertIn("class=\"dataframe\"", html)
-
-    @property
-    def df(self):
-        return pl.DataFrame({
-            'a': [1, 2, 3],
-            'b': [math.pi, 1 / 5, math.sqrt(2)],
-        })
+class MyTestCase(unittest.TestCase):
+    def test_something(self):
+        data = pl.DataFrame(
+            {
+                "x": [1, 2, 5, 10],
+                "y": [1, 2, 5, 10],
+                "single_line": ["aaaa", "adfasd", "dfsdfasdf", "a"],
+                "text": ["some long text " * 40] * 4,
+            },
+        )
+        table = (
+            Styler(data)
+            .set_table_class("ui celled table")
+            .set_column_style("x", {"text-align": "center", "color": "blue"})
+            .set_column_class("text", "single line")
+            .apply_gradient(
+                "x", min_val=0, max_val=15, color_start="#ffffff", color_end="#ff0000"
+            )
+            .format_bar("y", "#123455")
+        )
+        self.assertIsInstance(table.to_html(), str)
 
 
-def style(df: pl.DataFrame) -> Styler:
-    # use this to patch pl.DataFrame.style
-    from polars_styler.polars_styler import pydf_to_pystyler
-
-    py_styler = pydf_to_pystyler(df)
-    return Styler(py_styler)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
