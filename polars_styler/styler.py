@@ -1,38 +1,56 @@
 import html
 import sys
-from typing import Any, Dict, Literal, Optional
+from typing import Dict, Literal, Optional, Callable
 
 import polars as pl
+
+from polars_styler.table_attributes import TableAttributes
 
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self
 
+COLOR_RED = "#ffcccb"
+COLOR_GREEN = "#90EE90"
+COLOR_BLUE = "#ADD8E6"
+COLOR_YELLOW = "#FFFFE0"
+COLOR_ORANGE = "#FFE4B5"
+COLOR_PURPLE = "#E6E6FA"
+COLOR_GRAY = "#D3D3D3"
+
 
 class Styler:
-    def __init__(self, df: pl.DataFrame | pl.LazyFrame):
+    def __init__(self, df: pl.DataFrame):
         """Initialize the HTML Table Builder with a data frame."""
-        self._df: pl.LazyFrame = apply_defaults(df.lazy())
+        self._df: pl.LazyFrame = apply_defaults(df)
         self._columns: list[str] = df.columns
-        self._table_class: str | None = None
-        self._column_labels: list[str] | None = None
         self._null_string: str = "null"
-        self._page_settings: tuple[int, int] | None = None
+        self._table_attributes = TableAttributes(df.columns)
 
     def set_table_class(self, class_names: str | list[str]) -> Self:
-        """Store table-wide CSS class (stored as metadata)."""
-        if isinstance(class_names, list):
-            class_names = " ".join(class_names)
-        self._table_class = class_names
+        """Store table-wide CSS class."""
+        self._table_attributes.add_table_classes(class_names)
         return self
 
-    def set_column_class(self, column: str, class_names: str | list[str]) -> Self:
-        """Assign a CSS class to all cells in a column."""
-        if isinstance(class_names, str):
-            class_names = class_names.split(" ")
-        self._apply_cell_classes(column, pl.lit(class_names))
-        return self
+    def highlight_decrease(self, column: str, color: str) -> Self:
+        """Apply background color to cells where value decreases from previous row."""
+        expr = pl.col(column)
+        condition = expr.shift(1).ge(expr) & expr.shift(1).is_not_null()
+        return self.set_cell_style(column, condition, {"background-color": color})
+
+    def highlight_max(self, column: str, color: str = "#FFB3BA") -> Self:
+        """Highlight the maximum value in a column with a specified background color.
+
+        Args:
+            column: Name of the column to format
+            color: Color to highlight the maximum value with (default: yellow)
+
+        Returns:
+            Self for method chaining
+        """
+        condition = pl.col(column) == pl.col(column).max()
+        return self.set_cell_style(column, condition, {"background-color": color})
 
     def set_column_style(self, column: str, styles: Dict[str, str]) -> Self:
         """Assign an inline style to all cells in a column."""
@@ -40,9 +58,19 @@ class Styler:
         self._apply_cell_styles(column, *exprs)
         return self
 
-    def set_cell_class(self, column: str, condition: pl.Expr, class_name: str) -> Self:
+    def set_cell_class(
+        self,
+        column: str,
+        class_names: str | list[str],
+        *,
+        predicate: pl.Expr | None = None,
+    ) -> Self:
         """Apply a CSS class to cells based on a condition."""
-        class_expr = pl.when(condition).then(pl.lit([class_name])).otherwise(pl.lit([]))
+        if isinstance(class_names, str):
+            class_names = class_names.split(" ")
+        class_expr = pl.lit(class_names)
+        if predicate is not None:
+            class_expr = pl.when(predicate).then(class_expr).otherwise(pl.lit([]))
         self._apply_cell_classes(column, class_expr)
         return self
 
@@ -67,18 +95,19 @@ class Styler:
         self._apply_cell_classes(column, expr.str.split(" "))
         return self
 
-    def relabel_index(self, labels: list[str] | dict[str, str]) -> Self:
-        assert len(labels) == len(self._columns)
-        if isinstance(labels, dict):
-            labels = [labels[col] for col in self._columns]
-        self._column_labels = labels
+    def relabel_index(self, labels: list[str] | dict[str, str] | Callable) -> Self:
+        if callable(labels):
+            labels = [labels(col) for col in self._columns]
+        elif isinstance(labels, dict):
+            labels = [labels.get(col, col) for col in self._columns]
+        self._table_attributes.set_column_labels(labels)
         return self
 
     def set_null_class(self, column: str, class_name: str):
         return self.set_cell_class(column, pl.col(column).is_null(), class_name)
 
     def paged(self, page_num: int, rows_per_page: int) -> Self:
-        self._page_settings = page_num, rows_per_page
+        self._table_attributes.set_page_settings(rows_per_page, page_num)
         return self
 
     def _apply_cell_styles(self, column: str, *exprs: pl.Expr) -> None:
@@ -150,27 +179,22 @@ class Styler:
 
     def to_html(self) -> str:
         """Convert the lazy frame to an HTML table."""
-
         df = (
             self._df.with_columns(
                 pl.selectors.by_name(self._columns)
                 .cast(pl.String)
                 .fill_null(self._null_string),
                 pl.selectors.ends_with("__classes").list.join(" "),
-                pl.selectors.ends_with("__styles").map_elements(styles_struct_to_str),
+                pl.selectors.ends_with("__styles").map_elements(
+                    styles_struct_to_str, return_dtype=pl.String
+                ),
             )
             .pipe(self._apply_pages)
             .collect()
         )
 
-        table_class_attr = f' class="{self._table_class}"' if self._table_class else ""
-        html_table = [f"<table{table_class_attr}>"]
-
-        # Headers
-        html_table.extend(["<thead>", "<tr>"])
-        for col in self._column_labels or self._columns:
-            html_table.append(f"<th>{html.escape(col)}</th>")
-        html_table.extend(["</tr>", "</thead>"])
+        html_table = [self._table_attributes.tag_table()]
+        html_table.extend(self._table_attributes.tags_head())
 
         # Body
         html_table.append("<tbody>")
@@ -181,16 +205,15 @@ class Styler:
                 class_column = style_column_name(col, "classes")
                 style_column = style_column_name(col, "styles")
 
-                class_attr = (
-                    f' class="{row[class_column]}"' if class_column in row else ""
-                )
-                style_attr = (
-                    f' style="{row[style_column]}"' if style_column in row else ""
-                )
+                cell_tag = ["<td"]
+                if class_column in row:
+                    cell_tag.append(f' class="{row[class_column]}"')
+                if style_column in row:
+                    cell_tag.append(f' style="{row[style_column]}"')
+                cell_tag.append(">")
+                cell_tag = "".join(cell_tag)
 
-                html_table.append(
-                    f"<td{class_attr}{style_attr}>{html.escape(str(cell_value))}</td>"
-                )
+                html_table.append(f"{cell_tag}{html.escape(str(cell_value))}</td>")
             html_table.append("</tr>")
         html_table.append("</tbody>")
 
@@ -198,9 +221,9 @@ class Styler:
         return "\n".join(html_table)
 
     def _apply_pages(self, df: pl.LazyFrame) -> pl.LazyFrame:
-        if self._page_settings is None:
+        if self._table_attributes.page_settings is None:
             return df
-        page_num, rows_per_page = self._page_settings
+        page_num, rows_per_page = self._table_attributes.page_settings
         offset = page_num * rows_per_page
         length = rows_per_page
         return df.slice(offset, length)
@@ -241,29 +264,19 @@ def bar_chart_style(
     )
 
 
-def apply_defaults(df: pl.LazyFrame, /) -> pl.LazyFrame:
+def apply_defaults(df: pl.DataFrame, /) -> pl.LazyFrame:
     exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in df.columns]
     exprs_classes = [
         pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}__classes")
         for col in df.columns
     ]
-    return df.with_columns(*exprs_styles, *exprs_classes)
+    return df.lazy().with_columns(*exprs_styles, *exprs_classes)
 
 
 def styles_struct_to_str(x: dict, /) -> str:
-    return "; ".join(f'{k}: "{v}"' for k, v in x.items() if k != "_")
+    return "; ".join(f"{k}: {v}" for k, v in x.items() if k != "_" and v is not None)
 
 
 def style_column_name(column: str, suffix: Literal["styles", "classes"]) -> str:
     """Generate the name of an internal styling column."""
     return f"{column}__{suffix}"
-
-
-def if_else(predicate: pl.Expr, true: Any, false: Any) -> pl.Expr:
-    return (
-        pl.when(predicate.is_null())
-        .then(pl.lit(None))
-        .when(predicate)
-        .then(pl.lit(true))
-        .otherwise(pl.lit(false))
-    )

@@ -25,7 +25,7 @@ class MyTestCase(unittest.TestCase):
             Styler(self.data)
             .set_table_class("ui celled table")
             .set_column_style("x", {"text-align": "center", "color": "blue"})
-            .set_column_class("text", "single line")
+            .set_cell_class("text", "single line")
             .apply_gradient(
                 "x", min_val=0, max_val=15, color_start="#ffffff", color_end="#ff0000"
             )
@@ -69,6 +69,20 @@ class MyTestCase(unittest.TestCase):
             # .select(pl.col("data").struct.unnest())
         )
         print(df)
+
+    def test_highlight_max(self):
+        """Test highlighting maximum values in columns."""
+        df = pl.DataFrame({"A": [1, 5, 3, 2], "B": [10, 20, 50, 40]})
+
+        html = (
+            Styler(df)
+            .highlight_max("A", "#ffcccb")
+            .highlight_max("B", "#90EE90")
+            .to_html()
+        )
+
+        self.assertIn('background-color: "#ffcccb"', html)
+        self.assertIn('background-color: "#90EE90"', html)
 
 
 if __name__ == "__main__":

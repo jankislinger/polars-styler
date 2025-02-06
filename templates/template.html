@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semantic UI Table</title>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.css">
+</head>
+<body>
+
+{% for example in examples %}
+
+  <div class="ui container">
+    <h2 class="ui header">{{ example.title }}</h2>
+    <div class="ui message">
+      <pre><code>{{ example.code }}</code></pre>
+    </div>
+    {{ example.table|safe }}
+  </div>
+
+  {% if not loop.last %}
+    <div class="ui divider"></div>
+  {% endif %}
+
+{% endfor %}
+</body>
+</html>
