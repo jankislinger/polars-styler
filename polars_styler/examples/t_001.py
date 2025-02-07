@@ -1,5 +1,6 @@
 import polars as pl
-from polars_styler.styler import Styler, COLOR_RED, COLOR_BLUE
+from polars_styler.styler import Styler
+from polars_styler.const import COLOR_RED, COLOR_BLUE
 
 df = pl.DataFrame(
     {

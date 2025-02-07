@@ -40,7 +40,7 @@ class MyTestCase(unittest.TestCase):
             .set_column_style("x", {})
             .to_html()
         )
-        self.assertIn('background-color: "black"', html)
+        self.assertIn("background-color: black", html)
 
     def test_gpt(self):
         df = pl.DataFrame(
@@ -81,8 +81,8 @@ class MyTestCase(unittest.TestCase):
             .to_html()
         )
 
-        self.assertIn('background-color: "#ffcccb"', html)
-        self.assertIn('background-color: "#90EE90"', html)
+        self.assertIn("background-color: #ffcccb", html)
+        self.assertIn("background-color: #90EE90", html)
 
 
 if __name__ == "__main__":

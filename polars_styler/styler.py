@@ -11,14 +11,6 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-COLOR_RED = "#ffcccb"
-COLOR_GREEN = "#90EE90"
-COLOR_BLUE = "#ADD8E6"
-COLOR_YELLOW = "#FFFFE0"
-COLOR_ORANGE = "#FFE4B5"
-COLOR_PURPLE = "#E6E6FA"
-COLOR_GRAY = "#D3D3D3"
-
 
 class Styler:
     def __init__(self, df: pl.DataFrame):
