@@ -4,6 +4,11 @@ from typing import Dict, Literal, Optional, Callable
 
 import polars as pl
 
+from polars_styler.expression import (
+    cast_into_string,
+    format_classes_attr,
+    format_all_classes,
+)
 from polars_styler.table_attributes import TableAttributes
 
 if sys.version_info >= (3, 11):
@@ -19,7 +24,7 @@ class Styler:
         self._columns: list[str] = df.columns
         self._null_string: str = "null"
         self._table_attributes = TableAttributes(df.columns)
-        self._format_exprs: list[pl.Expr] = []
+        self._format_exprs: dict[str, pl.Expr] = {}
 
     def set_table_class(self, class_names: str | list[str]) -> Self:
         """Store table-wide CSS class."""
@@ -169,9 +174,12 @@ class Styler:
         return self
 
     def set_precision(self, column: str, decimals: int) -> Self:
-        expr = pl.col(column).round(decimals)
-        self._format_exprs.append(expr)
+        expr = self._get_format_expr(column).round(decimals)
+        self._format_exprs[column] = expr
         return self
+
+    def _get_format_expr(self, column: str) -> pl.Expr:
+        return self._format_exprs.get(column, pl.col(column))
 
     def set_null(self, value: str) -> Self:
         self._null_string = value
@@ -180,12 +188,10 @@ class Styler:
     def to_html(self) -> str:
         """Convert the lazy frame to an HTML table."""
         df = (
-            self._df.with_columns(self._format_exprs)
+            self._df.with_columns(**self._format_exprs)
             .with_columns(
-                pl.selectors.by_name(self._columns)
-                .cast(pl.String)
-                .fill_null(self._null_string),
-                pl.selectors.ends_with("__classes").list.join(" "),
+                cast_into_string(self._columns, self._null_string),
+                *format_all_classes(self._columns),
                 pl.selectors.ends_with("__styles").map_elements(
                     styles_struct_to_str, return_dtype=pl.String
                 ),
