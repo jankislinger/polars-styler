@@ -6,7 +6,6 @@ import polars as pl
 
 from polars_styler.expression import (
     cast_into_string,
-    format_classes_attr,
     format_all_classes,
 )
 from polars_styler.table_attributes import TableAttributes
