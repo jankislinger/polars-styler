@@ -42,34 +42,6 @@ class MyTestCase(unittest.TestCase):
         )
         self.assertIn("background-color: black", html)
 
-    def test_gpt(self):
-        df = pl.DataFrame(
-            {
-                "data": [
-                    {"a": 1},
-                    {},
-                    {},
-                    {},
-                    {"a": 1, "b": 2},
-                    # {"a": 3, "b": 4},
-                    # {"a": 5, "b": 6}
-                ]
-            }
-        )
-
-        # print(df.select(pl.col("data").struct.unnest()))
-
-        print(df["data"].dtype)
-
-        # Add a constant field to the struct
-        df = (
-            df.filter(pl.col("data").struct.field("a").is_null()).with_columns(
-                pl.col("data").struct.with_fields(pl.lit(42).alias("c"))
-            )
-            # .select(pl.col("data").struct.unnest())
-        )
-        print(df)
-
     def test_highlight_max(self):
         """Test highlighting maximum values in columns."""
         df = pl.DataFrame({"A": [1, 5, 3, 2], "B": [10, 20, 50, 40]})
@@ -83,6 +55,14 @@ class MyTestCase(unittest.TestCase):
 
         self.assertIn("background-color: #ffcccb", html)
         self.assertIn("background-color: #90EE90", html)
+
+    def test_precision(self):
+        df = pl.DataFrame({"x": [1 / 2, 1 / 3]})
+        html = Styler(df).set_precision("x", 3).to_html()
+        self.assertIn("0.5", html)
+        self.assertIn("0.333", html)
+        self.assertNotIn("0.50", html)
+        self.assertNotIn("0.3333", html)
 
 
 if __name__ == "__main__":

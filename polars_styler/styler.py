@@ -19,6 +19,7 @@ class Styler:
         self._columns: list[str] = df.columns
         self._null_string: str = "null"
         self._table_attributes = TableAttributes(df.columns)
+        self._format_exprs: list[pl.Expr] = []
 
     def set_table_class(self, class_names: str | list[str]) -> Self:
         """Store table-wide CSS class."""
@@ -96,7 +97,9 @@ class Styler:
         return self
 
     def set_null_class(self, column: str, class_name: str):
-        return self.set_cell_class(column, pl.col(column).is_null(), class_name)
+        return self.set_cell_class(
+            column, class_name, predicate=pl.col(column).is_null()
+        )
 
     def paged(self, page_num: int, rows_per_page: int) -> Self:
         self._table_attributes.set_page_settings(rows_per_page, page_num)
@@ -165,6 +168,11 @@ class Styler:
         )
         return self
 
+    def set_precision(self, column: str, decimals: int) -> Self:
+        expr = pl.col(column).round(decimals)
+        self._format_exprs.append(expr)
+        return self
+
     def set_null(self, value: str) -> Self:
         self._null_string = value
         return self
@@ -172,7 +180,8 @@ class Styler:
     def to_html(self) -> str:
         """Convert the lazy frame to an HTML table."""
         df = (
-            self._df.with_columns(
+            self._df.with_columns(self._format_exprs)
+            .with_columns(
                 pl.selectors.by_name(self._columns)
                 .cast(pl.String)
                 .fill_null(self._null_string),
@@ -265,7 +274,9 @@ def apply_defaults(df: pl.DataFrame, /) -> pl.LazyFrame:
     return df.lazy().with_columns(*exprs_styles, *exprs_classes)
 
 
-def styles_struct_to_str(x: dict, /) -> str:
+def styles_struct_to_str(x: dict, /) -> str | None:
+    if not x:
+        return None
     return "; ".join(f"{k}: {v}" for k, v in x.items() if k != "_" and v is not None)
 
 

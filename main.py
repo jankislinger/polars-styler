@@ -17,7 +17,7 @@ class Example:
 
 
 def main() -> None:
-    html = render_table([load_example(i) for i in range(2)])
+    html = render_table([load_example(i) for i in range(3)])
     Path("output.html").write_text(html)
 
 
