@@ -20,15 +20,12 @@ class MyTestCase(unittest.TestCase):
         html = Styler(self.data).to_html()
         self.assertIsInstance(html, str)
 
-    def test_something(self):
+    def test_simple(self):
         table = (
             Styler(self.data)
             .set_table_class("ui celled table")
             .set_column_style("x", {"text-align": "center", "color": "blue"})
             .set_cell_class("text", "single line")
-            .apply_gradient(
-                "x", min_val=0, max_val=15, color_start="#ffffff", color_end="#ff0000"
-            )
             .format_bar("y", "#123455")
         )
         html = table.to_html()

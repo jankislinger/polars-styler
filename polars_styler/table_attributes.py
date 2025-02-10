@@ -6,7 +6,7 @@ class TableAttributes:
     """Class to store table-wide attributes that don't affect individual cells."""
 
     def __init__(self, column_names: list[str]):
-        self._table_classes: set[str] = set()
+        self._table_classes: list[str] = []
         self._column_labels: list[str] = column_names
         self.page_settings: tuple[int, int] | None = None
 
@@ -14,7 +14,7 @@ class TableAttributes:
         """Set the CSS class for the table element."""
         if isinstance(class_names, str):
             class_names = class_names.split(" ")
-        self._table_classes.update(class_names)
+        self._table_classes.extend(class_names)
 
     def set_column_labels(self, labels: list[str]) -> None:
         """Set custom labels for table columns."""

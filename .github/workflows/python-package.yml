@@ -31,3 +31,6 @@ jobs:
 
     - name: Run tests
       run: uv run pytest py_tests
+
+    - name: Run docstring tests
+      run: uv run python -m doctest polars_styler/**/*.py

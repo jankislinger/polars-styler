@@ -19,7 +19,22 @@ else:
 
 class Styler:
     def __init__(self, df: pl.DataFrame):
-        """Initialize the HTML Table Builder with a data frame."""
+        """Initialize the HTML Table Builder with a data frame.
+
+        Args:
+            df (pl.DataFrame): Polars data frame to convert to an HTML table.
+
+        Returns:
+            Styler: A new instance of the Styler class.
+
+        Examples:
+            >>> import polars as pl
+            >>> from polars_styler.styler import Styler
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> html = Styler(df).to_html()
+            >>> assert html.startswith("<table>")
+            >>> assert html.endswith("</table>")
+        """
         self._df: pl.LazyFrame = apply_defaults(df)
         self._columns: list[str] = df.columns
         self._null_string: str = "null"
@@ -27,12 +42,37 @@ class Styler:
         self._format_exprs: dict[str, pl.Expr] = {}
 
     def set_table_class(self, class_names: str | list[str]) -> Self:
-        """Store table-wide CSS class."""
+        """Store table-wide CSS class.
+
+        Args:
+            class_names (str | list[str]): CSS class name(s) to apply to the table.
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).set_table_class("ui celled table")
+            >>> assert '<table class="ui celled table">' in styler.to_html()
+        """
         self._table_attributes.add_table_classes(class_names)
         return self
 
     def highlight_decrease(self, column: str, color: str) -> Self:
-        """Apply background color to cells where value decreases from previous row."""
+        """Apply background color to cells where value decreases from previous row.
+
+        Args:
+            column: Name of the column to format
+            color: Color to highlight the decreasing value with
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 3, 2], "B": [4, 6, 5]})
+            >>> styler = Styler(df).highlight_decrease("A", "#FFB3BA")
+            >>> assert '<td style="background-color: #FFB3BA">2</td>' in styler.to_html()
+        """
         expr = pl.col(column)
         condition = expr.shift(1).ge(expr) & expr.shift(1).is_not_null()
         return self.set_cell_style(column, condition, {"background-color": color})
@@ -45,13 +85,31 @@ class Styler:
             color: Color to highlight the maximum value with (default: yellow)
 
         Returns:
-            Self for method chaining
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 5, 3, 2], "B": [10, 20, 50, 40]})
+            >>> styler = Styler(df).highlight_max("A", "#ffcccb")
+            >>> assert '<td style="background-color: #ffcccb">5</td>' in styler.to_html()
         """
         condition = pl.col(column) == pl.col(column).max()
         return self.set_cell_style(column, condition, {"background-color": color})
 
     def set_column_style(self, column: str, styles: Dict[str, str]) -> Self:
-        """Assign an inline style to all cells in a column."""
+        """Assign an inline style to all cells in a column.
+
+        Args:
+            column: Name of the column to format
+            styles: Dictionary of CSS properties and values
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).set_column_style("A", {"color": "red"})
+            >>> assert '<td style="color: red">1</td>' in styler.to_html()
+        """
         exprs = [pl.repeat(value, pl.len()).alias(key) for key, value in styles.items()]
         self._apply_cell_styles(column, *exprs)
         return self
@@ -63,7 +121,21 @@ class Styler:
         *,
         predicate: pl.Expr | None = None,
     ) -> Self:
-        """Apply a CSS class to cells based on a condition."""
+        """Apply a CSS class to cells based on a condition.
+
+        Args:
+            column: Name of the column to format
+            class_names: CSS class name(s) to apply to the cell
+            predicate: Condition to apply the class (default: None)
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).set_cell_class("A", "highlight", predicate=pl.col("A") > 2)
+            >>> assert '<td class="highlight">3</td>' in styler.to_html()
+        """
         if isinstance(class_names, str):
             class_names = class_names.split(" ")
         class_expr = pl.lit(class_names)
@@ -75,7 +147,21 @@ class Styler:
     def set_cell_style(
         self, column: str, condition: pl.Expr, styles: Dict[str, str]
     ) -> Self:
-        """Apply an inline style to cells based on a condition."""
+        """Apply an inline style to cells based on a condition.
+
+        Args:
+            column: Name of the column to format
+            condition: Condition to apply the style
+            styles: Dictionary of CSS properties and values
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).set_cell_style("A", pl.col("A") > 2, {"color": "red"})
+            >>> assert '<td style="color: red">3</td>' in styler.to_html()
+        """
         column_name = style_column_name(column, "styles")
         self._df = self._df.with_columns(
             pl.when(condition)
@@ -86,14 +172,55 @@ class Styler:
         return self
 
     def apply_cell_styles(self, column: str, *exprs: pl.Expr) -> Self:
+        """Apply multiple inline styles to cells in a column.
+
+        Args:
+            column: Name of the column to format
+            *exprs: List of expressions to apply to the column cells
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).apply_cell_styles("A", pl.col("B").alias("font-size"))
+            >>> assert '<td style="font-size: 4">1</td>' in styler.to_html()
+        """
         self._apply_cell_styles(column, *exprs)
         return self
 
     def apply_cell_classes(self, column: str, expr: pl.Expr) -> Self:
+        """Apply multiple CSS classes to cells in a column.
+
+        Args:
+            column: Name of the column to format
+            expr: Expression that evaluates to a list of CSS classes
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).apply_cell_classes("A", pl.lit("highlight"))
+            >>> assert '<td class="highlight">1</td>' in styler.to_html()
+        """
         self._apply_cell_classes(column, expr.str.split(" "))
         return self
 
     def relabel_index(self, labels: list[str] | dict[str, str] | Callable) -> Self:
+        """Set custom labels for the index column.
+
+        Args:
+            labels: List of custom labels or a callable function to generate them
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).relabel_index(["Column A", "Column B"])
+            >>> assert '<th>Column A</th>' in styler.to_html()
+        """
         if callable(labels):
             labels = [labels(col) for col in self._columns]
         elif isinstance(labels, dict):
@@ -102,57 +229,26 @@ class Styler:
         return self
 
     def set_null_class(self, column: str, class_name: str):
+        """Apply a CSS class to cells with null values in a column.
+
+        Args:
+            column: Name of the column to format
+            class_name: CSS class name to apply to null cells
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, None, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).set_null_class("A", "missing")
+            >>> assert '<td class="missing">null</td>' in styler.to_html()
+        """
         return self.set_cell_class(
             column, class_name, predicate=pl.col(column).is_null()
         )
 
     def paged(self, page_num: int, rows_per_page: int) -> Self:
         self._table_attributes.set_page_settings(rows_per_page, page_num)
-        return self
-
-    def _apply_cell_styles(self, column: str, *exprs: pl.Expr) -> None:
-        column_style = style_column_name(column, "styles")
-        style_struct = pl.col(column_style).struct.with_fields(exprs)
-        self._df.with_columns(style_struct).collect()
-        self._df = self._df.with_columns(style_struct)
-
-    def _apply_cell_classes(self, column: str, expr: pl.Expr) -> None:
-        column_classes = style_column_name(column, "classes")
-        class_list = pl.col(column_classes).list.set_union(expr)
-        self._df = self._df.with_columns(class_list)
-        self._df.collect()
-
-    def apply_gradient(
-        self,
-        column: str,
-        min_val: Optional[float] = None,
-        max_val: Optional[float] = None,
-        color_start: str = "#ffffff",
-        color_end: str = "#ff0000",
-    ):
-        """Apply a background color gradient to numeric cells in a column."""
-        min_val = (
-            min_val
-            if min_val is not None
-            else self._df.select(pl.min(column)).collect().item()
-        )
-        max_val = (
-            max_val
-            if max_val is not None
-            else self._df.select(pl.max(column)).collect().item()
-        )
-        range_val = (
-            max_val - min_val if max_val != min_val else 1
-        )  # Prevent div by zero
-
-        gradient_expr = (pl.col(column) - min_val) / range_val
-        background = pl.format(
-            "linear-gradient(to right, {} {}%, {});",
-            pl.lit(color_start),
-            (gradient_expr * 100).cast(pl.Float64),
-            pl.lit(color_end),
-        )
-        self._apply_cell_styles(column, background.alias("background"))
         return self
 
     def format_bar(
@@ -164,6 +260,20 @@ class Styler:
     ):
         """
         Apply a bar chart effect to a numeric column using linear-gradient backgrounds.
+
+        Args:
+            column: Name of the column to format
+            color: Color for the filled portion of the bar
+            min_val: Minimum value for scaling (defaults to column min)
+            max_val: Maximum value for scaling (defaults to column max)
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).format_bar("A", "#123455")
+            >>> assert 'linear-gradient(90deg, #123455 50.0%, transparent 50.0%)' in styler.to_html()
         """
         background = bar_chart_style(pl.col(column), color, min_val, max_val)
         self._apply_cell_styles(
@@ -174,19 +284,56 @@ class Styler:
         return self
 
     def set_precision(self, column: str, decimals: int) -> Self:
+        """Set the number of decimal places to display in a numeric column.
+
+        Args:
+            column: Name of the column to format
+            decimals: Number of decimal places to display
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1.2345, 2.3456, 3.4567]})
+            >>> styler = Styler(df).set_precision("A", 2)
+            >>> assert '<td>1.23</td>' in styler.to_html()
+        """
         expr = self._get_format_expr(column).round(decimals)
         self._format_exprs[column] = expr
         return self
 
-    def _get_format_expr(self, column: str) -> pl.Expr:
-        return self._format_exprs.get(column, pl.col(column))
-
     def set_null(self, value: str) -> Self:
+        """Set the string to display for null values.
+
+        Args:
+            value: String to display for null values
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, None, 3]})
+            >>> styler = Styler(df).set_null("N/A")
+            >>> assert '<td>N/A</td>' in styler.to_html()
+        """
         self._null_string = value
         return self
 
-    def to_html(self) -> str:
-        """Convert the lazy frame to an HTML table."""
+    def to_html(self, *, sep: str = "\n") -> str:
+        """Convert the lazy frame to an HTML table.
+
+        Args:
+            sep: Separator to join the HTML elements with (default: newline)
+
+        Returns:
+            str: HTML string representing the table
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> html = Styler(df).to_html()
+            >>> assert html.startswith("<table>")
+            >>> assert html.endswith("</table>")
+        """
         df = (
             self._df.with_columns(**self._format_exprs)
             .with_columns(
@@ -211,7 +358,22 @@ class Styler:
         html_table.append("</tbody>")
 
         html_table.append("</table>")
-        return "\n".join(html_table)
+        return sep.join(html_table)
+
+    def _get_format_expr(self, column: str) -> pl.Expr:
+        return self._format_exprs.get(column, pl.col(column))
+
+    def _apply_cell_styles(self, column: str, *exprs: pl.Expr) -> None:
+        column_style = style_column_name(column, "styles")
+        style_struct = pl.col(column_style).struct.with_fields(exprs)
+        self._df.with_columns(style_struct).collect()
+        self._df = self._df.with_columns(style_struct)
+
+    def _apply_cell_classes(self, column: str, expr: pl.Expr) -> None:
+        column_classes = style_column_name(column, "classes")
+        class_list = pl.col(column_classes).list.set_union(expr)
+        self._df = self._df.with_columns(class_list)
+        self._df.collect()
 
     def _apply_pages(self, df: pl.LazyFrame) -> pl.LazyFrame:
         if self._table_attributes.page_settings is None:
