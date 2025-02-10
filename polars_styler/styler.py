@@ -1,4 +1,3 @@
-import html
 import sys
 from typing import Dict, Literal, Optional, Callable
 
@@ -8,6 +7,7 @@ from polars_styler.expression import (
     cast_into_string,
     format_all_classes,
     format_all_styles,
+    make_table_cells,
 )
 from polars_styler.table_attributes import TableAttributes
 
@@ -194,6 +194,7 @@ class Styler:
                 *format_all_classes(self._columns),
                 *format_all_styles(self._columns),
             )
+            .select(*make_table_cells(self._columns))
             .pipe(self._apply_pages)
             .collect()
         )
@@ -203,16 +204,9 @@ class Styler:
 
         # Body
         html_table.append("<tbody>")
-        for row in df.iter_rows(named=True):
+        for row in df.iter_rows():
             html_table.append("<tr>")
-            for col in self._columns:
-                cell_value = row[col]
-
-                class_column = style_column_name(col, "classes")
-                style_column = style_column_name(col, "styles")
-                cell_tag = f"<td{row[class_column]}{row[style_column]}>"
-
-                html_table.append(f"{cell_tag}{html.escape(str(cell_value))}</td>")
+            html_table.extend(row)
             html_table.append("</tr>")
         html_table.append("</tbody>")
 

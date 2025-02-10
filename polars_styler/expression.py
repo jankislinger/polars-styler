@@ -5,6 +5,16 @@ import polars as pl
 T = TypeVar("T")
 
 
+def make_table_cells(columns: list[str]) -> list[pl.Expr]:
+    return [make_table_cell(col) for col in columns]
+
+
+def make_table_cell(column: str) -> pl.Expr:
+    classes = pl.col(f"{column}__classes")
+    style = pl.col(f"{column}__styles")
+    return pl.format("<td{}{}>{}</td>", classes, style, pl.col(column)).alias(column)
+
+
 def format_all_classes(column_names: list[str]) -> list[pl.Expr]:
     return [format_classes_attr(col) for col in column_names]
 
