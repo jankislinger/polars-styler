@@ -7,6 +7,7 @@ import polars as pl
 from polars_styler.expression import (
     cast_into_string,
     format_all_classes,
+    format_all_styles,
 )
 from polars_styler.table_attributes import TableAttributes
 
@@ -191,9 +192,7 @@ class Styler:
             .with_columns(
                 cast_into_string(self._columns, self._null_string),
                 *format_all_classes(self._columns),
-                pl.selectors.ends_with("__styles").map_elements(
-                    styles_struct_to_str, return_dtype=pl.String
-                ),
+                *format_all_styles(self._columns),
             )
             .pipe(self._apply_pages)
             .collect()
@@ -208,16 +207,10 @@ class Styler:
             html_table.append("<tr>")
             for col in self._columns:
                 cell_value = row[col]
+
                 class_column = style_column_name(col, "classes")
                 style_column = style_column_name(col, "styles")
-
-                cell_tag = ["<td"]
-                if class_column in row:
-                    cell_tag.append(f' class="{row[class_column]}"')
-                if style_column in row:
-                    cell_tag.append(f' style="{row[style_column]}"')
-                cell_tag.append(">")
-                cell_tag = "".join(cell_tag)
+                cell_tag = f"<td{row[class_column]}{row[style_column]}>"
 
                 html_table.append(f"{cell_tag}{html.escape(str(cell_value))}</td>")
             html_table.append("</tr>")
@@ -277,12 +270,6 @@ def apply_defaults(df: pl.DataFrame, /) -> pl.LazyFrame:
         for col in df.columns
     ]
     return df.lazy().with_columns(*exprs_styles, *exprs_classes)
-
-
-def styles_struct_to_str(x: dict, /) -> str | None:
-    if not x:
-        return None
-    return "; ".join(f"{k}: {v}" for k, v in x.items() if k != "_" and v is not None)
 
 
 def style_column_name(column: str, suffix: Literal["styles", "classes"]) -> str:

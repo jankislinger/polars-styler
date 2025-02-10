@@ -31,7 +31,9 @@ class MyTestCase(unittest.TestCase):
             )
             .format_bar("y", "#123455")
         )
-        self.assertIsInstance(table.to_html(), str)
+        html = table.to_html()
+        self.assertIsInstance(html, str)
+        self.assertNotIn('class=""', html)
 
     def test_overwrite(self):
         html = (

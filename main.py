@@ -18,7 +18,9 @@ class Example:
 
 def main() -> None:
     html = render_table([load_example(i) for i in range(3)])
-    Path("output.html").write_text(html)
+    output_file = Path("output.html")
+    output_file.write_text(html)
+    print(f"Open in browser: file://{output_file.absolute()}")
 
 
 def load_example(i: int) -> Example:
