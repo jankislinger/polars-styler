@@ -30,16 +30,10 @@ jobs:
       run: uv run ruff check
 
     - name: Run tests
-      run: |
-        uv run pytest py_tests
-        uv run python -m doctest polars_styler/**/*.py
+      run: uv run pytest --doctest-modules
 
     - name: Run tests (with polars 1.10)
-      run: |
-        uv run --with 'polars~=1.10.0' pytest py_tests
-        uv run --with 'polars~=1.10.0' python -m doctest polars_styler/**/*.py
+      run: uv run --with 'polars~=1.10.0' pytest --doctest-modules
 
     - name: Run tests (with upgraded libraries)
-      run: |
-        uv run --upgrade pytest py_tests
-        uv run --upgrade python -m doctest polars_styler/**/*.py
+      run: uv run --upgrade pytest --doctest-modules
