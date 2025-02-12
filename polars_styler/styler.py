@@ -420,6 +420,21 @@ def bar_chart_style(
 
 
 def apply_defaults(df: pl.DataFrame, /) -> pl.LazyFrame:
+    """
+    Add default style and class columns to the DataFrame.
+
+    Args:
+        df (pl.DataFrame): The input Polars DataFrame.
+
+    Returns:
+        pl.LazyFrame: A lazy frame with additional style and class columns.
+
+    Examples:
+        >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+        >>> lazy_df = apply_defaults(df)
+        >>> assert "A__styles" in lazy_df.collect_schema().names()
+        >>> assert "B__classes" in lazy_df.collect_schema().names()
+    """
     exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in df.columns]
     exprs_classes = [
         pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}__classes")
