@@ -252,9 +252,9 @@ class Styler:
         self,
         column: str,
         color: str,
-        min_val: Optional[float] = None,
-        max_val: Optional[float] = None,
         *,
+        min_val: float | None = 0.0,
+        max_val: float | None = None,
         background_width: int = 95,
         background_height: int = 45,
     ):
