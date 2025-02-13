@@ -38,6 +38,12 @@ def format_styles_attr(column: str) -> pl.Expr:
     return pl.format(' style="{}"', styles).fill_null("").alias(styles_column)
 
 
+def reduce(df: pl.LazyFrame, exprs: list[pl.Expr]) -> pl.LazyFrame:
+    for expr in exprs:
+        df = df.with_columns(expr)
+    return df
+
+
 def _styles_struct_to_str(mapping: dict, /) -> str | None:
     mapping = {k: v for k, v in mapping.items() if k != "_" and v is not None}
     if not mapping:

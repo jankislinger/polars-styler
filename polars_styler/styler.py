@@ -8,6 +8,7 @@ from polars_styler.expression import (
     format_all_classes,
     format_all_styles,
     make_table_cells,
+    reduce,
 )
 from polars_styler.table_attributes import TableAttributes
 
@@ -39,7 +40,7 @@ class Styler:
         self._columns: list[str] = df.columns
         self._null_string: str = "null"
         self._table_attributes = TableAttributes(df.columns)
-        self._format_exprs: dict[str, pl.Expr] = {}
+        self._format_exprs: list[pl.Expr] = []
 
     def set_table_class(self, class_names: str | list[str]) -> Self:
         """Store table-wide CSS class.
@@ -304,8 +305,8 @@ class Styler:
             >>> styler = Styler(df).set_precision("A", 2)
             >>> assert '<td>1.23</td>' in styler.to_html()
         """
-        expr = self._get_format_expr(column).round(decimals)
-        self._format_exprs[column] = expr
+        expr = pl.col(column).round(decimals)
+        self._format_exprs.append(expr)
         return self
 
     def format(self, column: str, fmt: str):
@@ -319,12 +320,15 @@ class Styler:
             Self: The current instance for method chaining.
 
         Examples:
-            >>> df = pl.DataFrame({"A": [1, 2, 3]})
-            >>> styler = Styler(df).format("A", "{:.2f}")
-            >>> assert '<td>1.00</td>' in styler.to_html()
+            >>> df = pl.DataFrame({"A": [1234, 1222333], "B": [1/3, 1/7], "C": [1.2345, 2.3456]})
+            >>> styler = Styler(df).format("A", "{:,d}")
+            >>> assert '<td>1,222,333</td>' in styler.to_html()
+            >>> styler = Styler(df).format(["B", "C"], "{:.2f}")
+            >>> assert '<td>0.33</td>' in styler.to_html()
+            >>> assert '<td>1.23</td>' in styler.to_html()
         """
         expr = pl.col(column).map_elements(fmt.format, return_dtype=pl.String)
-        self._format_exprs[column] = expr
+        self._format_exprs.append(expr)
         return self
 
     def create_hyperlink(
@@ -350,7 +354,7 @@ class Styler:
         elif isinstance(url, str):
             url = pl.col(url)
         expr = pl.format('<a href="{}">{}</a>', url, pl.col(column)).alias(column)
-        self._format_exprs[column] = expr
+        self._format_exprs.append(expr)
         return self
 
     def set_null(self, value: str) -> Self:
@@ -392,7 +396,6 @@ class Styler:
             columns = [columns]
         for column in columns:
             self._columns.remove(column)
-            self._format_exprs.pop(column, None)
         return self
 
     def to_html(self, *, sep: str = "\n") -> str:
@@ -411,7 +414,7 @@ class Styler:
             >>> assert html.endswith("</table>")
         """
         df = (
-            self._df.with_columns(**self._format_exprs)
+            self._df.pipe(reduce, self._format_exprs)
             .with_columns(
                 cast_into_string(self._columns, self._null_string),
                 *format_all_classes(self._columns),
@@ -445,9 +448,6 @@ class Styler:
         """
         print(self.to_html(sep="\n"))
         return self
-
-    def _get_format_expr(self, column: str) -> pl.Expr:
-        return self._format_exprs.get(column, pl.col(column))
 
     def _apply_cell_styles(self, column: str, *exprs: pl.Expr) -> None:
         column_style = style_column_name(column, "styles")

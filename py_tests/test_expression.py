@@ -8,6 +8,7 @@ from polars_styler.expression import (
     format_all_classes,
     format_styles_attr,
     format_all_styles,
+    reduce,
 )
 
 
@@ -64,6 +65,32 @@ def test_format_styles_attr_multi():
         }
     )
     pl.testing.assert_frame_equal(df_out, expected)
+
+
+def test_reduce():
+    df = pl.LazyFrame(
+        {
+            "x_a": [1, 2, 3],
+            "x_b": [4, 5, 6],
+            "y_a": [7, 8, 9],
+            "y_b": [10, 11, 12],
+        }
+    )
+    exprs = [
+        pl.selectors.starts_with("x").add(10),
+        pl.selectors.ends_with("a").add(100),
+    ]
+    expected = pl.DataFrame(
+        {
+            "x_a": [111, 112, 113],
+            "x_b": [14, 15, 16],
+            "y_a": [107, 108, 109],
+            "y_b": [10, 11, 12],
+        }
+    )
+
+    result = reduce(df, exprs).collect()
+    pl.testing.assert_frame_equal(result, expected)
 
 
 if __name__ == "__main__":
