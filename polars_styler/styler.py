@@ -222,9 +222,10 @@ class Styler:
             >>> assert '<th>Column A</th>' in styler.to_html()
         """
         if callable(labels):
-            labels = [labels(col) for col in self._columns]
-        elif isinstance(labels, dict):
-            labels = [labels.get(col, col) for col in self._columns]
+            labels = {col: labels(col) for col in self._columns}
+        elif isinstance(labels, list):
+            assert len(labels) == len(self._columns)
+            labels = dict(zip(self._columns, labels))
         self._table_attributes.set_column_labels(labels)
         return self
 
@@ -319,6 +320,24 @@ class Styler:
         self._null_string = value
         return self
 
+    def skip_column(self, column: str) -> Self:
+        """Skip a column from the output table.
+
+        Args:
+            column: Name of the column to skip
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).skip_column("A")
+            >>> assert '<th>A</th>' not in styler.to_html()
+            >>> assert '<th>B</th>' in styler.to_html()
+        """
+        self._columns.remove(column)
+        return self
+
     def to_html(self, *, sep: str = "\n") -> str:
         """Convert the lazy frame to an HTML table.
 
@@ -347,7 +366,7 @@ class Styler:
         )
 
         html_table = [self._table_attributes.tag_table()]
-        html_table.extend(self._table_attributes.tags_head())
+        html_table.extend(self._table_attributes.tags_head(self._columns))
 
         # Body
         html_table.append("<tbody>")
