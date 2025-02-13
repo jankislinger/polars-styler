@@ -248,10 +248,6 @@ class Styler:
             column, class_name, predicate=pl.col(column).is_null()
         )
 
-    def paged(self, page_num: int, rows_per_page: int) -> Self:
-        self._table_attributes.set_page_settings(rows_per_page, page_num)
-        return self
-
     def format_bar(
         self,
         column: str,
@@ -408,7 +404,6 @@ class Styler:
                 *format_all_styles(self._columns),
             )
             .select(*make_table_cells(self._columns))
-            .pipe(self._apply_pages)
             .collect()
         )
 
@@ -452,14 +447,6 @@ class Styler:
         class_list = pl.col(column_classes).list.set_union(expr)
         self._df = self._df.with_columns(class_list)
         self._df.collect()
-
-    def _apply_pages(self, df: pl.LazyFrame) -> pl.LazyFrame:
-        if self._table_attributes.page_settings is None:
-            return df
-        page_num, rows_per_page = self._table_attributes.page_settings
-        offset = page_num * rows_per_page
-        length = rows_per_page
-        return df.slice(offset, length)
 
 
 def relative_value(

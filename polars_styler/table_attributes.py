@@ -20,10 +20,6 @@ class TableAttributes:
         """Set custom labels for table columns."""
         self._column_labels.update(labels)
 
-    def set_page_settings(self, page_size: int, page_number: int) -> None:
-        """Set pagination settings."""
-        self.page_settings = (page_size, page_number)
-
     def tag_table(self) -> str:
         if not self._table_classes:
             return "<table>"

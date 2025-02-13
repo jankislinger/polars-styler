@@ -8,4 +8,4 @@ uv run ruff format && \
   uv run ruff check --fix && \
   __run_tests && \
   __run_tests --with='polars~=1.10.0' && \
-  __run_tests --upgrade --prerelease=allow
+  __run_tests --upgrade
