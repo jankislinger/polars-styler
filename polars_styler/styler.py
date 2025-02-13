@@ -273,7 +273,7 @@ class Styler:
             Self: The current instance for method chaining.
 
         Examples:
-            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> df = pl.DataFrame({"A": [1, 2, 4], "B": [4, 5, 6]})
             >>> styler = Styler(df).format_bar("A", "#123455")
             >>> assert 'linear-gradient(90deg, #123455 50.0%, transparent 50.0%)' in styler.to_html()
         """
@@ -325,22 +325,25 @@ class Styler:
         self._format_exprs[column] = expr
         return self
 
-    def create_hyperlink(self, column: str, url: str | pl.Expr):
+    def create_hyperlink(self, column: str, url: str | pl.Expr, *, url_format: str | None=None):
         """Create a hyperlink from a column value.
 
         Args:
             column: Name of the column to format
-            url: URL to link to
+            url: Polars expression or column name that contains (a part of) the URL
+            url_format: Format string to apply to the URL (default: None)
 
         Returns:
             Self: The current instance for method chaining.
 
         Examples:
-            >>> df = pl.DataFrame({"A": ["foo", "bar", "baz"], "B": ["qux", "quux", "corge"]})
-            >>> styler = Styler(df).create_hyperlink("A", "B")
-            >>> assert '<a href="qux">foo</a>' in styler.to_html()
+            >>> df = pl.DataFrame({"A": ["foo", "bar", "baz"], "B": ["com", "org", "gov"]})
+            >>> styler = Styler(df).create_hyperlink("A", "B", url_format="https://example.{}")
+            >>> assert '<a href="https://example.com">foo</a>' in styler.to_html()
         """
-        if isinstance(url, str):
+        if url_format is not None:
+            url = pl.format(url_format, pl.col(url))
+        elif isinstance(url, str):
             url = pl.col(url)
         expr = pl.format('<a href="{}">{}</a>', url, pl.col(column)).alias(column)
         self._format_exprs[column] = expr
