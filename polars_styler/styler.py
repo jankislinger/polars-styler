@@ -370,22 +370,29 @@ class Styler:
         self._null_string = value
         return self
 
-    def skip_column(self, column: str) -> Self:
+    def skip_columns(self, columns: str | list[str]) -> Self:
         """Skip a column from the output table.
 
         Args:
-            column: Name of the column to skip
+            columns: Names of the columns to skip
 
         Returns:
             Self: The current instance for method chaining.
 
         Examples:
             >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
-            >>> styler = Styler(df).skip_column("A")
+            >>> styler = Styler(df).skip_columns("A")
             >>> assert '<th>A</th>' not in styler.to_html()
             >>> assert '<th>B</th>' in styler.to_html()
+            >>> styler = Styler(df).skip_columns(["A", "B"])
+            >>> assert '<th>' not in styler.to_html()
+            >>> assert '<td>' not in styler.to_html()
         """
-        self._columns.remove(column)
+        if isinstance(columns, str):
+            columns = [columns]
+        for column in columns:
+            self._columns.remove(column)
+            self._format_exprs.pop(column, None)
         return self
 
     def to_html(self, *, sep: str = "\n") -> str:
@@ -417,7 +424,6 @@ class Styler:
         html_table = [self._table_attributes.tag_table()]
         html_table.extend(self._table_attributes.tags_head(self._columns))
 
-        # Body
         html_table.append("<tbody>")
         for row in df.iter_rows():
             html_table.append("<tr>")
@@ -522,8 +528,6 @@ def bar_chart_style(
     Args:
         fraction (pl.Expr): Polars expression representing the value.
         color (str): The color for the filled portion of the bar.
-        min_val (Optional[float]): Minimum value for scaling (defaults to column min).
-        max_val (Optional[float]): Maximum value for scaling (defaults to column max).
 
     Returns:
         pl.Expr: An expression that evaluates to a CSS background string.
