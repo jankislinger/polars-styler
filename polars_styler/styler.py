@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, Literal, Optional, Callable
+from typing import Dict, Literal, Callable
 
 import polars as pl
 
@@ -250,41 +250,43 @@ class Styler:
 
     def format_bar(
         self,
-        column: str,
+        columns: str | list[str],
         color: str,
         *,
-        min_val: float | None = 0.0,
-        max_val: float | None = None,
-        background_width: int = 95,
-        background_height: int = 45,
+        min_val: float | str = 0.0,
+        max_val: float | str = "max",
+        width: int = 95,
+        height: int = 45,
     ):
         """
         Apply a bar chart effect to a numeric column using linear-gradient backgrounds.
 
         Args:
-            column: Name of the column to format
+            columns: Names of the columns to format
             color: Color for the filled portion of the bar
-            min_val: Minimum value for scaling (defaults to column min)
-            max_val: Maximum value for scaling (defaults to column max)
-            background_width: Width of the bar chart background in pixels (default: 80)
-            background_height: Height of the bar chart background in pixels (default: 40)
+            min_val: Minimum value for scaling or aggregation function (defaults to 0)
+            max_val: Maximum value for scaling or aggregation function (defaults to column max)
+            width: Width of the bar chart background in percent (default: 95)
+            height: Height of the bar chart background in percent (default: 45)
 
         Returns:
             Self: The current instance for method chaining.
 
         Examples:
             >>> df = pl.DataFrame({"A": [1, 2, 4], "B": [4, 5, 6]})
-            >>> styler = Styler(df).format_bar("A", "#123455")
+            >>> styler = Styler(df).format_bar("A", "#123455", height=20)
             >>> assert 'linear-gradient(90deg, #123455 50.0%, transparent 50.0%)' in styler.to_html()
+            >>> assert 'background-size: 95% 20%' in styler.to_html()
+            >>> styler = Styler(df).format_bar(["A", "B"], "#FFFFFF", max_val=10)
+            >>> assert 'linear-gradient(90deg, #FFFFFF 60.0%, transparent 60.0%)' in styler.to_html()
         """
-        background = bar_chart_style(pl.col(column), color, min_val, max_val)
-        self._apply_cell_styles(
-            column,
-            background.alias("background"),
-            pl.lit(f"{background_width}% {background_height}%").alias(
-                "background-size"
-            ),
-        )
+        if isinstance(columns, str):
+            columns = [columns]
+        background_size = pl.lit(f"{width}% {height}%").alias("background-size")
+        for column in columns:
+            fraction = relative_value(pl.col(column), min_val, max_val)
+            background = bar_chart_style(fraction, color).alias("background")
+            self._apply_cell_styles(column, background, background_size)
         return self
 
     def set_precision(self, column: str, decimals: int) -> Self:
@@ -325,7 +327,9 @@ class Styler:
         self._format_exprs[column] = expr
         return self
 
-    def create_hyperlink(self, column: str, url: str | pl.Expr, *, url_format: str | None=None):
+    def create_hyperlink(
+        self, column: str, url: str | pl.Expr, *, url_format: str | None = None
+    ):
         """Create a hyperlink from a column value.
 
         Args:
@@ -453,24 +457,70 @@ class Styler:
 
 
 def relative_value(
-    value: pl.Expr, min_val: float | None = None, max_val: float | None = None
+    value: pl.Expr, min_val: float | str, max_val: float | str
 ) -> pl.Expr:
-    min_val = value.min() if min_val is None else pl.lit(min_val)
-    max_val = value.max() if max_val is None else pl.lit(max_val)
+    """Generate a Polars expression that computes the relative value of a column.
+
+    Args:
+        value: Polars expression representing the value.
+        min_val: Minimum value or aggregation function for scaling.
+        max_val: Maximum value or aggregation function for scaling.
+
+    Returns:
+        pl.Expr: An expression that evaluates to the relative value.
+
+    Examples:
+        >>> df = pl.DataFrame({"x": [1, 3, 4]})
+        >>> df.with_columns(rel=relative_value(pl.col("x"), 0, 5))
+        shape: (3, 2)
+        ┌─────┬─────┐
+        │ x   ┆ rel │
+        │ --- ┆ --- │
+        │ i64 ┆ f64 │
+        ╞═════╪═════╡
+        │ 1   ┆ 0.2 │
+        │ 3   ┆ 0.6 │
+        │ 4   ┆ 0.8 │
+        └─────┴─────┘
+        >>> df.with_columns(rel=relative_value(pl.col("x"), "min", "max"))
+        shape: (3, 2)
+        ┌─────┬──────────┐
+        │ x   ┆ rel      │
+        │ --- ┆ ---      │
+        │ i64 ┆ f64      │
+        ╞═════╪══════════╡
+        │ 1   ┆ 0.0      │
+        │ 3   ┆ 0.666667 │
+        │ 4   ┆ 1.0      │
+        └─────┴──────────┘
+        >>> df.with_columns(rel=relative_value(pl.col("x"), 0, "sum"))
+        shape: (3, 2)
+        ┌─────┬───────┐
+        │ x   ┆ rel   │
+        │ --- ┆ ---   │
+        │ i64 ┆ f64   │
+        ╞═════╪═══════╡
+        │ 1   ┆ 0.125 │
+        │ 3   ┆ 0.375 │
+        │ 4   ┆ 0.5   │
+        └─────┴───────┘
+    """
+    if isinstance(min_val, str):
+        min_val = getattr(value, min_val)()
+    if isinstance(max_val, str):
+        max_val = getattr(value, max_val)()
     return (value - min_val) / (max_val - min_val)
 
 
 def bar_chart_style(
-    value: pl.Expr,
+    fraction: pl.Expr,
     color: str,
-    min_val: Optional[float] = None,
-    max_val: Optional[float] = None,
 ) -> pl.Expr:
     """
     Generate a Polars expression that computes the background style for a bar chart inside a cell.
 
     Args:
-        value (pl.Expr): Polars expression representing the value.
+        fraction (pl.Expr): Polars expression representing the value.
         color (str): The color for the filled portion of the bar.
         min_val (Optional[float]): Minimum value for scaling (defaults to column min).
         max_val (Optional[float]): Maximum value for scaling (defaults to column max).
@@ -478,13 +528,9 @@ def bar_chart_style(
     Returns:
         pl.Expr: An expression that evaluates to a CSS background string.
     """
-    percentage = relative_value(value, min_val, max_val).mul(100).round(1).cast(pl.Utf8)
-    return pl.format(
-        "linear-gradient(90deg, {} {}%, transparent {}%) no-repeat center",
-        pl.lit(color),
-        percentage,
-        percentage,
-    )
+    percentage = fraction.clip(0, 1).mul(100).round(1).cast(pl.Utf8)
+    f_string = "linear-gradient(90deg, {} {}%, transparent {}%) no-repeat center"
+    return pl.format(f_string, pl.lit(color), percentage, percentage)
 
 
 def apply_defaults(df: pl.DataFrame, /) -> pl.LazyFrame:
