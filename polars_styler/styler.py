@@ -258,6 +258,9 @@ class Styler:
         color: str,
         min_val: Optional[float] = None,
         max_val: Optional[float] = None,
+        *,
+        background_width: int = 95,
+        background_height: int = 45,
     ):
         """
         Apply a bar chart effect to a numeric column using linear-gradient backgrounds.
@@ -267,6 +270,8 @@ class Styler:
             color: Color for the filled portion of the bar
             min_val: Minimum value for scaling (defaults to column min)
             max_val: Maximum value for scaling (defaults to column max)
+            background_width: Width of the bar chart background in pixels (default: 80)
+            background_height: Height of the bar chart background in pixels (default: 40)
 
         Returns:
             Self: The current instance for method chaining.
@@ -280,7 +285,9 @@ class Styler:
         self._apply_cell_styles(
             column,
             background.alias("background"),
-            pl.lit("100% 40%").alias("background-size"),
+            pl.lit(f"{background_width}% {background_height}%").alias(
+                "background-size"
+            ),
         )
         return self
 
@@ -300,6 +307,46 @@ class Styler:
             >>> assert '<td>1.23</td>' in styler.to_html()
         """
         expr = self._get_format_expr(column).round(decimals)
+        self._format_exprs[column] = expr
+        return self
+
+    def format(self, column: str, fmt: str):
+        """Apply a custom format string to a column.
+
+        Args:
+            column: Name of the column to format
+            fmt: Format string to apply
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3]})
+            >>> styler = Styler(df).format("A", "{:.2f}")
+            >>> assert '<td>1.00</td>' in styler.to_html()
+        """
+        expr = pl.col(column).map_elements(fmt.format, return_dtype=pl.String)
+        self._format_exprs[column] = expr
+        return self
+
+    def create_hyperlink(self, column: str, url: str | pl.Expr):
+        """Create a hyperlink from a column value.
+
+        Args:
+            column: Name of the column to format
+            url: URL to link to
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": ["foo", "bar", "baz"], "B": ["qux", "quux", "corge"]})
+            >>> styler = Styler(df).create_hyperlink("A", "B")
+            >>> assert '<a href="qux">foo</a>' in styler.to_html()
+        """
+        if isinstance(url, str):
+            url = pl.col(url)
+        expr = pl.format('<a href="{}">{}</a>', url, pl.col(column)).alias(column)
         self._format_exprs[column] = expr
         return self
 
@@ -379,6 +426,18 @@ class Styler:
         html_table.append("</table>")
         return sep.join(html_table)
 
+    def _repr_html_(self) -> str:
+        return self.to_html(sep="")
+
+    def print_html(self) -> Self:
+        """Print the HTML table to the console.
+
+        Returns:
+            Self: The current instance for method chaining.
+        """
+        print(self.to_html(sep="\n"))
+        return self
+
     def _get_format_expr(self, column: str) -> pl.Expr:
         return self._format_exprs.get(column, pl.col(column))
 
@@ -431,7 +490,7 @@ def bar_chart_style(
     """
     percentage = relative_value(value, min_val, max_val).mul(100).round(1).cast(pl.Utf8)
     return pl.format(
-        "linear-gradient(90deg, {} {}%, transparent {}%) no-repeat center;",
+        "linear-gradient(90deg, {} {}%, transparent {}%) no-repeat center",
         pl.lit(color),
         percentage,
         percentage,
