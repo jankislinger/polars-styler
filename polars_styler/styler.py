@@ -342,7 +342,7 @@ class Styler:
             >>> assert '<a href="https://example.com">foo</a>' in styler.to_html()
         """
         if url_format is not None:
-            url = pl.format(url_format, pl.col(url))
+            url = pl.format(url_format, url)
         elif isinstance(url, str):
             url = pl.col(url)
         expr = pl.format('<a href="{}">{}</a>', url, pl.col(column)).alias(column)
