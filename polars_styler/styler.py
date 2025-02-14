@@ -309,11 +309,11 @@ class Styler:
         self._format_exprs.append(expr)
         return self
 
-    def format(self, column: str, fmt: str):
+    def format(self, columns: str | list[str], fmt: str):
         """Apply a custom format string to a column.
 
         Args:
-            column: Name of the column to format
+            columns: Names of the columns to format
             fmt: Format string to apply
 
         Returns:
@@ -327,7 +327,7 @@ class Styler:
             >>> assert '<td>0.33</td>' in styler.to_html()
             >>> assert '<td>1.23</td>' in styler.to_html()
         """
-        expr = pl.col(column).map_elements(fmt.format, return_dtype=pl.String)
+        expr = pl.col(columns).map_elements(fmt.format, return_dtype=pl.String)
         self._format_exprs.append(expr)
         return self
 
@@ -531,6 +531,22 @@ def bar_chart_style(
 
     Returns:
         pl.Expr: An expression that evaluates to a CSS background string.
+
+    Examples:
+        >>> df = pl.DataFrame({"x": [0.1, -0.1, 0.5, 1.3]})
+        >>> with pl.Config(fmt_str_lengths=80):
+        ...     df.with_columns(style=bar_chart_style(pl.col("x"), "#123455"))
+        shape: (4, 2)
+        ┌──────┬─────────────────────────────────────────────────────────────────────────────┐
+        │ x    ┆ style                                                                       │
+        │ ---  ┆ ---                                                                         │
+        │ f64  ┆ str                                                                         │
+        ╞══════╪═════════════════════════════════════════════════════════════════════════════╡
+        │ 0.1  ┆ linear-gradient(90deg, #123455 10.0%, transparent 10.0%) no-repeat center   │
+        │ -0.1 ┆ linear-gradient(90deg, #123455 0.0%, transparent 0.0%) no-repeat center     │
+        │ 0.5  ┆ linear-gradient(90deg, #123455 50.0%, transparent 50.0%) no-repeat center   │
+        │ 1.3  ┆ linear-gradient(90deg, #123455 100.0%, transparent 100.0%) no-repeat center │
+        └──────┴─────────────────────────────────────────────────────────────────────────────┘
     """
     percentage = fraction.clip(0, 1).mul(100).round(1).cast(pl.Utf8)
     f_string = "linear-gradient(90deg, {} {}%, transparent {}%) no-repeat center"
