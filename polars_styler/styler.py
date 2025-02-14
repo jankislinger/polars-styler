@@ -19,27 +19,26 @@ else:
 
 
 class Styler:
-    def __init__(self, df: pl.DataFrame):
+    def __init__(self, data: pl.DataFrame, /):
         """Initialize the HTML Table Builder with a data frame.
 
         Args:
-            df (pl.DataFrame): Polars data frame to convert to an HTML table.
+            data (pl.DataFrame): Polars data frame to convert to an HTML table.
 
         Returns:
             Styler: A new instance of the Styler class.
 
         Examples:
-            >>> import polars as pl
             >>> from polars_styler.styler import Styler
             >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
             >>> html = Styler(df).to_html()
             >>> assert html.startswith("<table>")
             >>> assert html.endswith("</table>")
         """
-        self._df: pl.LazyFrame = apply_defaults(df)
-        self._columns: list[str] = df.columns
+        self._df: pl.LazyFrame = apply_defaults(data)
+        self._columns: list[str] = data.columns
         self._null_string: str = "null"
-        self._table_attributes = TableAttributes(df.columns)
+        self._table_attributes = TableAttributes(data.columns)
         self._format_exprs: list[pl.Expr] = []
 
     def set_table_class(self, class_names: str | list[str]) -> Self:
@@ -258,6 +257,7 @@ class Styler:
         max_val: float | str = "max",
         width: int = 95,
         height: int = 45,
+        align_right: bool = False,
     ):
         """
         Apply a bar chart effect to a numeric column using linear-gradient backgrounds.
@@ -269,6 +269,7 @@ class Styler:
             max_val: Maximum value for scaling or aggregation function (defaults to column max)
             width: Width of the bar chart background in percent (default: 95)
             height: Height of the bar chart background in percent (default: 45)
+            align_right: Align the bar chart to the right side of the cell (default: False)
 
         Returns:
             Self: The current instance for method chaining.
@@ -276,17 +277,19 @@ class Styler:
         Examples:
             >>> df = pl.DataFrame({"A": [1, 2, 4], "B": [4, 5, 6]})
             >>> styler = Styler(df).format_bar("A", "#123455", height=20)
-            >>> assert 'linear-gradient(90deg, #123455 50.0%, transparent 50.0%)' in styler.to_html()
+            >>> assert 'linear-gradient(to right, #123455 50.0%, transparent 50.0%)' in styler.to_html()
             >>> assert 'background-size: 95% 20%' in styler.to_html()
             >>> styler = Styler(df).format_bar(["A", "B"], "#FFFFFF", max_val=10)
-            >>> assert 'linear-gradient(90deg, #FFFFFF 60.0%, transparent 60.0%)' in styler.to_html()
+            >>> assert 'linear-gradient(to right, #FFFFFF 60.0%, transparent 60.0%)' in styler.to_html()
         """
         if isinstance(columns, str):
             columns = [columns]
         background_size = pl.lit(f"{width}% {height}%").alias("background-size")
         for column in columns:
             fraction = relative_value(pl.col(column), min_val, max_val)
-            background = bar_chart_style(fraction, color).alias("background")
+            background = bar_chart_style(
+                fraction, color, align_right=align_right
+            ).alias("background")
             self._apply_cell_styles(column, background, background_size)
         return self
 
@@ -413,7 +416,7 @@ class Styler:
             >>> assert html.startswith("<table>")
             >>> assert html.endswith("</table>")
         """
-        df = (
+        table = (
             self._df.pipe(reduce, self._format_exprs)
             .with_columns(
                 cast_into_string(self._columns, self._null_string),
@@ -428,7 +431,7 @@ class Styler:
         html_table.extend(self._table_attributes.tags_head(self._columns))
 
         html_table.append("<tbody>")
-        for row in df.iter_rows():
+        for row in table.iter_rows():
             html_table.append("<tr>")
             html_table.extend(row)
             html_table.append("</tr>")
@@ -519,8 +522,7 @@ def relative_value(
 
 
 def bar_chart_style(
-    fraction: pl.Expr,
-    color: str,
+    fraction: pl.Expr, color: str, *, align_right: bool = False
 ) -> pl.Expr:
     """
     Generate a Polars expression that computes the background style for a bar chart inside a cell.
@@ -528,6 +530,7 @@ def bar_chart_style(
     Args:
         fraction (pl.Expr): Polars expression representing the value.
         color (str): The color for the filled portion of the bar.
+        align_right (bool): Align the bar chart to the right side of the cell (default: False).
 
     Returns:
         pl.Expr: An expression that evaluates to a CSS background string.
@@ -537,28 +540,31 @@ def bar_chart_style(
         >>> with pl.Config(fmt_str_lengths=80):
         ...     df.with_columns(style=bar_chart_style(pl.col("x"), "#123455"))
         shape: (4, 2)
-        ┌──────┬─────────────────────────────────────────────────────────────────────────────┐
-        │ x    ┆ style                                                                       │
-        │ ---  ┆ ---                                                                         │
-        │ f64  ┆ str                                                                         │
-        ╞══════╪═════════════════════════════════════════════════════════════════════════════╡
-        │ 0.1  ┆ linear-gradient(90deg, #123455 10.0%, transparent 10.0%) no-repeat center   │
-        │ -0.1 ┆ linear-gradient(90deg, #123455 0.0%, transparent 0.0%) no-repeat center     │
-        │ 0.5  ┆ linear-gradient(90deg, #123455 50.0%, transparent 50.0%) no-repeat center   │
-        │ 1.3  ┆ linear-gradient(90deg, #123455 100.0%, transparent 100.0%) no-repeat center │
-        └──────┴─────────────────────────────────────────────────────────────────────────────┘
+        ┌──────┬────────────────────────────────────────────────────────────────────────────────┐
+        │ x    ┆ style                                                                          │
+        │ ---  ┆ ---                                                                            │
+        │ f64  ┆ str                                                                            │
+        ╞══════╪════════════════════════════════════════════════════════════════════════════════╡
+        │ 0.1  ┆ linear-gradient(to right, #123455 10.0%, transparent 10.0%) no-repeat center   │
+        │ -0.1 ┆ linear-gradient(to right, #123455 0.0%, transparent 0.0%) no-repeat center     │
+        │ 0.5  ┆ linear-gradient(to right, #123455 50.0%, transparent 50.0%) no-repeat center   │
+        │ 1.3  ┆ linear-gradient(to right, #123455 100.0%, transparent 100.0%) no-repeat center │
+        └──────┴────────────────────────────────────────────────────────────────────────────────┘
     """
+    side = "to left" if align_right else "to right"
     percentage = fraction.clip(0, 1).mul(100).round(1).cast(pl.Utf8)
-    f_string = "linear-gradient(90deg, {} {}%, transparent {}%) no-repeat center"
-    return pl.format(f_string, pl.lit(color), percentage, percentage)
+    f_string = (
+        f"linear-gradient({side}, {color} {{}}%, transparent {{}}%) no-repeat center"
+    )
+    return pl.format(f_string, percentage, percentage)
 
 
-def apply_defaults(df: pl.DataFrame, /) -> pl.LazyFrame:
+def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
     """
     Add default style and class columns to the DataFrame.
 
     Args:
-        df (pl.DataFrame): The input Polars DataFrame.
+        data (pl.DataFrame): The input Polars DataFrame.
 
     Returns:
         pl.LazyFrame: A lazy frame with additional style and class columns.
@@ -569,12 +575,12 @@ def apply_defaults(df: pl.DataFrame, /) -> pl.LazyFrame:
         >>> assert "A__styles" in lazy_df.collect_schema().names()
         >>> assert "B__classes" in lazy_df.collect_schema().names()
     """
-    exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in df.columns]
+    exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in data.columns]
     exprs_classes = [
         pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}__classes")
-        for col in df.columns
+        for col in data.columns
     ]
-    return df.lazy().with_columns(*exprs_styles, *exprs_classes)
+    return data.lazy().with_columns(*exprs_styles, *exprs_classes)
 
 
 def style_column_name(column: str, suffix: Literal["styles", "classes"]) -> str:

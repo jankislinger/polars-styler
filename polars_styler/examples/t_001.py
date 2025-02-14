@@ -12,6 +12,6 @@ styler = (
     Styler(df)
     .set_table_class("ui celled table selectable")
     .highlight_decrease("x", COLOR_RED)
-    .format_bar("y", COLOR_BLUE, max_val=1)
+    .format_bar("y", COLOR_BLUE, max_val=1, align_right=True)
     .relabel_index(lambda x: f"Column '{x}'")
 )
