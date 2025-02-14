@@ -258,6 +258,7 @@ class Styler:
         width: int = 95,
         height: int = 45,
         align_right: bool = False,
+        position: Literal["center", "left", "right"] = "center",
     ):
         """
         Apply a bar chart effect to a numeric column using linear-gradient backgrounds.
@@ -270,6 +271,7 @@ class Styler:
             width: Width of the bar chart background in percent (default: 95)
             height: Height of the bar chart background in percent (default: 45)
             align_right: Align the bar chart to the right side of the cell (default: False)
+            position: Horizontal alignment of the bar chart (default: "center")
 
         Returns:
             Self: The current instance for method chaining.
@@ -284,13 +286,19 @@ class Styler:
         """
         if isinstance(columns, str):
             columns = [columns]
-        background_size = pl.lit(f"{width}% {height}%").alias("background-size")
+
+        bg_properties = {
+            "background-position": pl.lit(position),
+            "background-repeat": pl.lit("no-repeat"),
+            "background-size": pl.lit(f"{width}% {height}%"),
+        }
+
         for column in columns:
             fraction = relative_value(pl.col(column), min_val, max_val)
-            background = bar_chart_style(
-                fraction, color, align_right=align_right
-            ).alias("background")
-            self._apply_cell_styles(column, background, background_size)
+            bg_image = bar_chart_style(fraction, color, align_right=align_right).alias(
+                "background-image"
+            )
+            self._apply_cell_styles(column, bg_image, **bg_properties)
         return self
 
     def set_precision(self, column: str, decimals: int) -> Self:
@@ -452,9 +460,9 @@ class Styler:
         print(self.to_html(sep="\n"))
         return self
 
-    def _apply_cell_styles(self, column: str, *exprs: pl.Expr) -> None:
+    def _apply_cell_styles(self, column: str, *exprs: pl.Expr, **named_exprs) -> None:
         column_style = style_column_name(column, "styles")
-        style_struct = pl.col(column_style).struct.with_fields(exprs)
+        style_struct = pl.col(column_style).struct.with_fields(*exprs, **named_exprs)
         self._df.with_columns(style_struct).collect()
         self._df = self._df.with_columns(style_struct)
 
@@ -537,25 +545,23 @@ def bar_chart_style(
 
     Examples:
         >>> df = pl.DataFrame({"x": [0.1, -0.1, 0.5, 1.3]})
-        >>> with pl.Config(fmt_str_lengths=80):
+        >>> with pl.Config(fmt_str_lengths=70):
         ...     df.with_columns(style=bar_chart_style(pl.col("x"), "#123455"))
         shape: (4, 2)
-        ┌──────┬────────────────────────────────────────────────────────────────────────────────┐
-        │ x    ┆ style                                                                          │
-        │ ---  ┆ ---                                                                            │
-        │ f64  ┆ str                                                                            │
-        ╞══════╪════════════════════════════════════════════════════════════════════════════════╡
-        │ 0.1  ┆ linear-gradient(to right, #123455 10.0%, transparent 10.0%) no-repeat center   │
-        │ -0.1 ┆ linear-gradient(to right, #123455 0.0%, transparent 0.0%) no-repeat center     │
-        │ 0.5  ┆ linear-gradient(to right, #123455 50.0%, transparent 50.0%) no-repeat center   │
-        │ 1.3  ┆ linear-gradient(to right, #123455 100.0%, transparent 100.0%) no-repeat center │
-        └──────┴────────────────────────────────────────────────────────────────────────────────┘
+        ┌──────┬───────────────────────────────────────────────────────────────┐
+        │ x    ┆ style                                                         │
+        │ ---  ┆ ---                                                           │
+        │ f64  ┆ str                                                           │
+        ╞══════╪═══════════════════════════════════════════════════════════════╡
+        │ 0.1  ┆ linear-gradient(to right, #123455 10.0%, transparent 10.0%)   │
+        │ -0.1 ┆ linear-gradient(to right, #123455 0.0%, transparent 0.0%)     │
+        │ 0.5  ┆ linear-gradient(to right, #123455 50.0%, transparent 50.0%)   │
+        │ 1.3  ┆ linear-gradient(to right, #123455 100.0%, transparent 100.0%) │
+        └──────┴───────────────────────────────────────────────────────────────┘
     """
     side = "to left" if align_right else "to right"
     percentage = fraction.clip(0, 1).mul(100).round(1).cast(pl.Utf8)
-    f_string = (
-        f"linear-gradient({side}, {color} {{}}%, transparent {{}}%) no-repeat center"
-    )
+    f_string = f"linear-gradient({side}, {color} {{}}%, transparent {{}}%)"
     return pl.format(f_string, percentage, percentage)
 
 
