@@ -581,7 +581,7 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
         >>> assert "A__styles" in lazy_df.collect_schema().names()
         >>> assert "B__classes" in lazy_df.collect_schema().names()
     """
-    exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in data.columns]
+    exprs_styles = [pl.repeat(pl.Series(), len(data)).alias(f"{col}__styles") for col in data.columns]
     exprs_classes = [
         pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}__classes")
         for col in data.columns
