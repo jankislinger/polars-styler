@@ -16,11 +16,11 @@ def make_table_cells(columns: list[str]) -> list[pl.Expr]:
     Examples:
         >>> df = pl.DataFrame({
         ...     "x": [1, 2, 3],
-        ...     "x__classes": ["", ' class=\"foo\"',  'class=\"foo bar\"'],
-        ...     "x__styles": ["", ' style=\"foo: 2"', 'style="foo: 2; bar: baz"'],
+        ...     "x::class": ["", ' class=\"foo\"',  'class=\"foo bar\"'],
+        ...     "x::style": ["", ' style=\"foo: 2"', 'style="foo: 2; bar: baz"'],
         ...     "y": [4, 5, 6],
-        ...     "y__classes": ["", ' class=\"foo\"',  'class=\"foo bar\"'],
-        ...     "y__styles": ["", ' style=\"foo: 2"', 'style="foo: 2; bar: baz"'],
+        ...     "y::class": ["", ' class=\"foo\"',  'class=\"foo bar\"'],
+        ...     "y::style": ["", ' style=\"foo: 2"', 'style="foo: 2; bar: baz"'],
         ... })
         >>> df.select(make_table_cells(["x", "y"]))
         shape: (3, 2)
@@ -49,8 +49,8 @@ def make_table_cell(column: str) -> pl.Expr:
     Examples:
         >>> df = pl.DataFrame({
         ...     "x": [1, 2, 3],
-        ...     "x__classes": ["", ' class=\"foo\"',  'class=\"foo bar\"'],
-        ...     "x__styles": ["", ' style=\"foo: 2"', 'style="foo: 2; bar: baz"'],
+        ...     "x::class": ["", ' class=\"foo\"',  'class=\"foo bar\"'],
+        ...     "x::style": ["", ' style=\"foo: 2"', 'style="foo: 2; bar: baz"'],
         ... })
         >>> with pl.Config(fmt_str_lengths=70):
         ...     df.select(make_table_cell("x"))
@@ -65,8 +65,8 @@ def make_table_cell(column: str) -> pl.Expr:
         │ <tdclass="foo bar"style="foo: 2; bar: baz">3</td> │
         └───────────────────────────────────────────────────┘
     """
-    classes = pl.col(f"{column}__classes")
-    style = pl.col(f"{column}__styles")
+    classes = pl.col(f"{column}::class")
+    style = pl.col(f"{column}::style")
     return pl.format("<td{}{}>{}</td>", classes, style, pl.col(column)).alias(column)
 
 
@@ -84,13 +84,13 @@ def format_all_classes(column_names: list[str]) -> list[pl.Expr]:
 
     Examples:
         >>> df = pl.DataFrame({
-        ...     "x__classes": [None, ["foo"]],
-        ...     "y__classes": [[],  ["bar foo"]],
+        ...     "x::class": [None, ["foo"]],
+        ...     "y::class": [[],  ["bar foo"]],
         ... })
         >>> df.select(format_all_classes(["x", "y"]))
         shape: (2, 2)
         ┌──────────────┬──────────────────┐
-        │ x__classes   ┆ y__classes       │
+        │ x::class     ┆ y::class         │
         │ ---          ┆ ---              │
         │ str          ┆ str              │
         ╞══════════════╪══════════════════╡
@@ -111,11 +111,11 @@ def format_classes_attr(column: str) -> pl.Expr:
         A Polars expression that formats the classes attribute.
 
     Examples:
-        >>> df = pl.DataFrame({"x__classes": [None, [], ["foo"], ["foo bar"]]})
+        >>> df = pl.DataFrame({"x::class": [None, [], ["foo"], ["foo bar"]]})
         >>> df.select(format_classes_attr("x"))
         shape: (4, 1)
         ┌──────────────────┐
-        │ x__classes       │
+        │ x::class         │
         │ ---              │
         │ str              │
         ╞══════════════════╡
@@ -125,7 +125,7 @@ def format_classes_attr(column: str) -> pl.Expr:
         │  class="foo bar" │
         └──────────────────┘
     """
-    class_column = f"{column}__classes"
+    class_column = f"{column}::class"
     expr = pl.col(class_column)
     expr = pl.when(expr.list.len() > 0).then(expr).otherwise(None).list.join(" ")
     return pl.format(' class="{}"', expr).fill_null("").alias(class_column)
@@ -143,13 +143,13 @@ def format_all_styles(column_names: list[str]) -> list[pl.Expr]:
     Examples:
         >>> struct = pl.Struct({"foo": pl.Int32, "bar": pl.String})
         >>> df = pl.DataFrame([
-        ...     pl.Series("x__styles", [None, {"foo": 1}], struct),
-        ...     pl.Series("y__styles", [{}, {"foo": 2, "bar": "baz"}], struct),
+        ...     pl.Series("x::style", [None, {"foo": 1}], struct),
+        ...     pl.Series("y::style", [{}, {"foo": 2, "bar": "baz"}], struct),
         ... ])
         >>> df.select(*format_all_styles(["x", "y"]))
         shape: (2, 2)
         ┌─────────────────┬───────────────────────────┐
-        │ x__styles       ┆ y__styles                 │
+        │ x::style        ┆ y::style                  │
         │ ---             ┆ ---                       │
         │ str             ┆ str                       │
         ╞═════════════════╪═══════════════════════════╡
@@ -171,7 +171,7 @@ def format_styles_attr(column: str) -> pl.Expr:
 
     Examples:
         >>> x_styles = pl.Series(
-        ...     "x__styles",
+        ...     "x::style",
         ...     [None, {}, {"foo": 1}, {"foo": 2, "bar": "baz"}],
         ...     pl.Struct({"foo": pl.Int32, "bar": pl.String}),
         ... )
@@ -179,7 +179,7 @@ def format_styles_attr(column: str) -> pl.Expr:
         >>> df.select(format_styles_attr("x"))
         shape: (4, 1)
         ┌───────────────────────────┐
-        │ x__styles                 │
+        │ x::style                  │
         │ ---                       │
         │ str                       │
         ╞═══════════════════════════╡
@@ -189,7 +189,7 @@ def format_styles_attr(column: str) -> pl.Expr:
         │  style="foo: 2; bar: baz" │
         └───────────────────────────┘
     """
-    styles_column = f"{column}__styles"
+    styles_column = f"{column}::style"
     styles = pl.col(styles_column).map_elements(
         _styles_struct_to_str, return_dtype=pl.String
     )

@@ -162,7 +162,7 @@ class Styler:
             >>> styler = Styler(df).set_cell_style("A", pl.col("A") > 2, {"color": "red"})
             >>> assert '<td style="color: red">3</td>' in styler.to_html()
         """
-        column_name = style_column_name(column, "styles")
+        column_name = style_column_name(column, "style")
         self._df = self._df.with_columns(
             pl.when(condition)
             .then(pl.lit(styles))
@@ -461,13 +461,13 @@ class Styler:
         return self
 
     def _apply_cell_styles(self, column: str, *exprs: pl.Expr, **named_exprs) -> None:
-        column_style = style_column_name(column, "styles")
+        column_style = style_column_name(column, "style")
         style_struct = pl.col(column_style).struct.with_fields(*exprs, **named_exprs)
         self._df.with_columns(style_struct).collect()
         self._df = self._df.with_columns(style_struct)
 
     def _apply_cell_classes(self, column: str, expr: pl.Expr) -> None:
-        column_classes = style_column_name(column, "classes")
+        column_classes = style_column_name(column, "class")
         class_list = pl.col(column_classes).list.set_union(expr)
         self._df = self._df.with_columns(class_list)
         self._df.collect()
@@ -580,7 +580,7 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
         >>> apply_defaults(df).collect()
         shape: (3, 6)
         ┌─────┬─────┬───────────┬───────────┬────────────┬────────────┐
-        │ A   ┆ B   ┆ A__styles ┆ B__styles ┆ A__classes ┆ B__classes │
+        │ A   ┆ B   ┆ A::style ┆ B::style ┆ A::class ┆ B::class │
         │ --- ┆ --- ┆ ---       ┆ ---       ┆ ---        ┆ ---        │
         │ i64 ┆ i64 ┆ struct[0] ┆ struct[0] ┆ list[str]  ┆ list[str]  │
         ╞═════╪═════╪═══════════╪═══════════╪════════════╪════════════╡
@@ -589,14 +589,14 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
         │ 3   ┆ 6   ┆ {}        ┆ {}        ┆ []         ┆ []         │
         └─────┴─────┴───────────┴───────────┴────────────┴────────────┘
     """
-    exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in data.columns]
+    exprs_styles = [pl.lit({}).alias(f"{col}::style") for col in data.columns]
     exprs_classes = [
-        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}__classes")
+        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class")
         for col in data.columns
     ]
     return data.lazy().with_columns(*exprs_styles, *exprs_classes)
 
 
-def style_column_name(column: str, suffix: Literal["styles", "classes"]) -> str:
+def style_column_name(column: str, suffix: Literal["style", "class"]) -> str:
     """Generate the name of an internal styling column."""
-    return f"{column}__{suffix}"
+    return f"{column}::{suffix}"
