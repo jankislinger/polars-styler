@@ -8,7 +8,7 @@ from polars_styler.expression import (
     format_all_classes,
     format_all_styles,
     make_table_cells,
-    reduce,
+    reduce_with_columns,
 )
 from polars_styler.table_attributes import TableAttributes
 
@@ -425,7 +425,7 @@ class Styler:
             >>> assert html.endswith("</table>")
         """
         table = (
-            self._df.pipe(reduce, self._format_exprs)
+            self._df.pipe(reduce_with_columns, self._format_exprs)
             .with_columns(
                 cast_into_string(self._columns, self._null_string),
                 *format_all_classes(self._columns),
@@ -577,9 +577,17 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
 
     Examples:
         >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
-        >>> lazy_df = apply_defaults(df)
-        >>> assert "A__styles" in lazy_df.collect_schema().names()
-        >>> assert "B__classes" in lazy_df.collect_schema().names()
+        >>> apply_defaults(df).collect()
+        shape: (3, 6)
+        ┌─────┬─────┬───────────┬───────────┬────────────┬────────────┐
+        │ A   ┆ B   ┆ A__styles ┆ B__styles ┆ A__classes ┆ B__classes │
+        │ --- ┆ --- ┆ ---       ┆ ---       ┆ ---        ┆ ---        │
+        │ i64 ┆ i64 ┆ struct[0] ┆ struct[0] ┆ list[str]  ┆ list[str]  │
+        ╞═════╪═════╪═══════════╪═══════════╪════════════╪════════════╡
+        │ 1   ┆ 4   ┆ {}        ┆ {}        ┆ []         ┆ []         │
+        │ 2   ┆ 5   ┆ {}        ┆ {}        ┆ []         ┆ []         │
+        │ 3   ┆ 6   ┆ {}        ┆ {}        ┆ []         ┆ []         │
+        └─────┴─────┴───────────┴───────────┴────────────┴────────────┘
     """
     exprs_styles = [pl.lit({}).alias(f"{col}__styles") for col in data.columns]
     exprs_classes = [

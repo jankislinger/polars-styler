@@ -8,7 +8,7 @@ from polars_styler.expression import (
     format_all_classes,
     format_styles_attr,
     format_all_styles,
-    reduce,
+    reduce_with_columns,
 )
 
 
@@ -89,7 +89,7 @@ def test_reduce():
         }
     )
 
-    result = reduce(df, exprs).collect()
+    result = reduce_with_columns(df, exprs).collect()
     pl.testing.assert_frame_equal(result, expected)
 
 
