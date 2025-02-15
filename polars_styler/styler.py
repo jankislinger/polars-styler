@@ -110,7 +110,7 @@ class Styler:
             >>> styler = Styler(df).set_column_style("A", {"color": "red"})
             >>> assert '<td style="color: red">1</td>' in styler.to_html()
         """
-        exprs = [pl.repeat(value, pl.len()).alias(key) for key, value in styles.items()]
+        exprs = [pl.lit(value).alias(key) for key, value in styles.items()]
         self._apply_cell_styles(column, *exprs)
         return self
 
