@@ -578,10 +578,19 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
     Examples:
         >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
         >>> lazy_df = apply_defaults(df)
-        >>> assert "A__styles" in lazy_df.collect_schema().names()
-        >>> assert "B__classes" in lazy_df.collect_schema().names()
+        >>> lazy_df.collect()
+        shape: (3, 6)
+        ┌─────┬─────┬───────────┬───────────┬────────────┬────────────┐
+        │ A   ┆ B   ┆ A__styles ┆ B__styles ┆ A__classes ┆ B__classes │
+        │ --- ┆ --- ┆ ---       ┆ ---       ┆ ---        ┆ ---        │
+        │ i64 ┆ i64 ┆ struct[0] ┆ struct[0] ┆ list[str]  ┆ list[str]  │
+        ╞═════╪═════╪═══════════╪═══════════╪════════════╪════════════╡
+        │ 1   ┆ 4   ┆ {}        ┆ {}        ┆ []         ┆ []         │
+        │ 2   ┆ 5   ┆ {}        ┆ {}        ┆ []         ┆ []         │
+        │ 3   ┆ 6   ┆ {}        ┆ {}        ┆ []         ┆ []         │
+        └─────┴─────┴───────────┴───────────┴────────────┴────────────┘
     """
-    exprs_styles = [pl.repeat(pl.Series(), len(data)).alias(f"{col}__styles") for col in data.columns]
+    exprs_styles = [pl.repeat({}, len(data)).alias(f"{col}__styles") for col in data.columns]
     exprs_classes = [
         pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}__classes")
         for col in data.columns
