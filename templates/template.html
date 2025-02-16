@@ -11,7 +11,7 @@
 
 {% for example in examples %}
 
-  <div class="ui container">
+  <div class="ui container" style="padding: 2em 1em">
     <h2 class="ui header">{{ example.title }}</h2>
     <div class="ui message">
       <pre><code>{{ example.code }}</code></pre>
@@ -24,5 +24,6 @@
   {% endif %}
 
 {% endfor %}
+
 </body>
 </html>
