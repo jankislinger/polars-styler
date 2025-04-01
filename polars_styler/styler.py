@@ -294,8 +294,8 @@ class Styler:
         *,
         min_val: float | str = 0.0,
         max_val: float | str = "max",
-        width: int = 95,
-        height: int = 45,
+        width: int | str = 95,
+        height: int | str = 45,
         align_right: bool = False,
         position: Literal["center", "left", "right"] = "center",
     ) -> Self:
@@ -307,8 +307,8 @@ class Styler:
             color: Color for the filled portion of the bar
             min_val: Minimum value for scaling or aggregation function (defaults to 0)
             max_val: Maximum value for scaling or aggregation function (defaults to column max)
-            width: Width of the bar chart background in percent (default: 95)
-            height: Height of the bar chart background in percent (default: 45)
+            width: Width of the bar chart background (int signifies percent, default: 95)
+            height: Height of the bar chart background (int signifies percent, default: 45)
             align_right: Align the bar chart to the right side of the cell (default: False)
             position: Horizontal alignment of the bar chart (default: "center")
 
@@ -317,10 +317,10 @@ class Styler:
 
         Examples:
             >>> df = pl.DataFrame({"A": [1, 2, 4], "B": [4, 5, 6]})
-            >>> styler = Styler(df).format_bar("A", "#123455", height=20)
+            >>> styler = Styler(df).format_bar("A", "#123455", height=20, width="100px")
             >>> expected = 'linear-gradient(to right, #123455 50.0%, transparent 50.0%)'
             >>> assert expected in styler.to_html()
-            >>> assert 'background-size: 95% 20%' in styler.to_html()
+            >>> assert 'background-size: 100px 20%' in styler.to_html()
             >>> styler = Styler(df).format_bar(["A", "B"], "#FFFFFF", max_val=10)
             >>> expected = 'linear-gradient(to right, #FFFFFF 60.0%, transparent 60.0%)'
             >>> assert expected in styler.to_html()
@@ -328,10 +328,15 @@ class Styler:
         if isinstance(columns, str):
             columns = [columns]
 
+        if isinstance(width, int):
+            width = f"{width}%"
+        if isinstance(height, int):
+            height = f"{height}%"
+
         bg_properties = {
             "background-position": pl.lit(position),
             "background-repeat": pl.lit("no-repeat"),
-            "background-size": pl.lit(f"{width}% {height}%"),
+            "background-size": pl.lit(f"{width} {height}"),
         }
 
         for column in columns:
