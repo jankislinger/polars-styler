@@ -5,7 +5,7 @@ from typing import Iterable
 class TableAttributes:
     """Class to store table-wide attributes that don't affect individual cells."""
 
-    def __init__(self, column_names: list[str]):
+    def __init__(self, column_names: list[str]) -> None:
         self._table_classes: list[str] = []
         self._column_labels: dict[str, str] = {k: k for k in column_names}
         self.page_settings: tuple[int, int] | None = None

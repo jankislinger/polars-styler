@@ -4,10 +4,10 @@ import polars as pl
 import polars.testing
 
 from polars_styler.expression import (
-    format_classes_attr,
     format_all_classes,
-    format_styles_attr,
     format_all_styles,
+    format_classes_attr,
+    format_styles_attr,
     reduce_with_columns,
 )
 
@@ -39,9 +39,7 @@ def test_format_styles_attr():
     )
     df_in = x_styles.to_frame()
     df_out = df_in.select(format_styles_attr("x"))
-    expected = pl.DataFrame(
-        {"x::style": ["", "", ' style="foo: 1"', ' style="foo: 2; bar: baz"']}
-    )
+    expected = pl.DataFrame({"x::style": ["", "", ' style="foo: 1"', ' style="foo: 2; bar: baz"']})
     pl.testing.assert_frame_equal(df_out, expected)
 
 

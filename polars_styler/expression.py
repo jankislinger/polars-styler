@@ -190,9 +190,7 @@ def format_styles_attr(column: str) -> pl.Expr:
         └───────────────────────────┘
     """
     styles_column = f"{column}::style"
-    styles = pl.col(styles_column).map_elements(
-        _styles_struct_to_str, return_dtype=pl.String
-    )
+    styles = pl.col(styles_column).map_elements(_styles_struct_to_str, return_dtype=pl.String)
     return pl.format(' style="{}"', styles).fill_null("").alias(styles_column)
 
 

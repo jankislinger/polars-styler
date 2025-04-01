@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, Literal, Callable
+from typing import Callable, Dict, Literal
 
 import polars as pl
 
@@ -19,7 +19,7 @@ else:
 
 
 class Styler:
-    def __init__(self, data: pl.DataFrame, /):
+    def __init__(self, data: pl.DataFrame, /) -> None:
         """Initialize the HTML Table Builder with a data frame.
 
         Args:
@@ -144,9 +144,7 @@ class Styler:
         self._apply_cell_classes(column, class_expr)
         return self
 
-    def set_cell_style(
-        self, column: str, condition: pl.Expr, styles: Dict[str, str]
-    ) -> Self:
+    def set_cell_style(self, column: str, condition: pl.Expr, styles: Dict[str, str]) -> Self:
         """Apply an inline style to cells based on a condition.
 
         Args:
@@ -164,10 +162,7 @@ class Styler:
         """
         column_name = style_column_name(column, "style")
         self._df = self._df.with_columns(
-            pl.when(condition)
-            .then(pl.lit(styles))
-            .otherwise(pl.lit({}))
-            .alias(column_name)
+            pl.when(condition).then(pl.lit(styles)).otherwise(pl.lit({})).alias(column_name)
         )
         return self
 
@@ -225,11 +220,11 @@ class Styler:
             labels = {col: labels(col) for col in self._columns}
         elif isinstance(labels, list):
             assert len(labels) == len(self._columns)
-            labels = dict(zip(self._columns, labels))
+            labels = dict(zip(self._columns, labels, strict=False))
         self._table_attributes.set_column_labels(labels)
         return self
 
-    def set_null_class(self, column: str, class_name: str):
+    def set_null_class(self, column: str, class_name: str) -> Self:
         """Apply a CSS class to cells with null values in a column.
 
         Args:
@@ -244,9 +239,7 @@ class Styler:
             >>> styler = Styler(df).set_null_class("A", "missing")
             >>> assert '<td class="missing">null</td>' in styler.to_html()
         """
-        return self.set_cell_class(
-            column, class_name, predicate=pl.col(column).is_null()
-        )
+        return self.set_cell_class(column, class_name, predicate=pl.col(column).is_null())
 
     def format_bar(
         self,
@@ -259,7 +252,7 @@ class Styler:
         height: int = 45,
         align_right: bool = False,
         position: Literal["center", "left", "right"] = "center",
-    ):
+    ) -> Self:
         """
         Apply a bar chart effect to a numeric column using linear-gradient backgrounds.
 
@@ -279,10 +272,12 @@ class Styler:
         Examples:
             >>> df = pl.DataFrame({"A": [1, 2, 4], "B": [4, 5, 6]})
             >>> styler = Styler(df).format_bar("A", "#123455", height=20)
-            >>> assert 'linear-gradient(to right, #123455 50.0%, transparent 50.0%)' in styler.to_html()
+            >>> expected = 'linear-gradient(to right, #123455 50.0%, transparent 50.0%)'
+            >>> assert expected in styler.to_html()
             >>> assert 'background-size: 95% 20%' in styler.to_html()
             >>> styler = Styler(df).format_bar(["A", "B"], "#FFFFFF", max_val=10)
-            >>> assert 'linear-gradient(to right, #FFFFFF 60.0%, transparent 60.0%)' in styler.to_html()
+            >>> expected = 'linear-gradient(to right, #FFFFFF 60.0%, transparent 60.0%)'
+            >>> assert expected in styler.to_html()
         """
         if isinstance(columns, str):
             columns = [columns]
@@ -320,7 +315,7 @@ class Styler:
         self._format_exprs.append(expr)
         return self
 
-    def format(self, columns: str | list[str], fmt: str):
+    def format(self, columns: str | list[str], fmt: str) -> Self:
         """Apply a custom format string to a column.
 
         Args:
@@ -344,7 +339,7 @@ class Styler:
 
     def create_hyperlink(
         self, column: str, url: str | pl.Expr, *, url_format: str | None = None
-    ):
+    ) -> Self:
         """Create a hyperlink from a column value.
 
         Args:
@@ -460,7 +455,7 @@ class Styler:
         print(self.to_html(sep="\n"))
         return self
 
-    def _apply_cell_styles(self, column: str, *exprs: pl.Expr, **named_exprs) -> None:
+    def _apply_cell_styles(self, column: str, *exprs: pl.Expr, **named_exprs: pl.Expr) -> None:
         column_style = style_column_name(column, "style")
         style_struct = pl.col(column_style).struct.with_fields(*exprs, **named_exprs)
         self._df.with_columns(style_struct).collect()
@@ -473,9 +468,7 @@ class Styler:
         self._df.collect()
 
 
-def relative_value(
-    value: pl.Expr, min_val: float | str, max_val: float | str
-) -> pl.Expr:
+def relative_value(value: pl.Expr, min_val: float | str, max_val: float | str) -> pl.Expr:
     """Generate a Polars expression that computes the relative value of a column.
 
     Args:
@@ -522,16 +515,12 @@ def relative_value(
         │ 4   ┆ 0.5   │
         └─────┴───────┘
     """
-    if isinstance(min_val, str):
-        min_val = getattr(value, min_val)()
-    if isinstance(max_val, str):
-        max_val = getattr(value, max_val)()
-    return (value - min_val) / (max_val - min_val)
+    min_val_ft = getattr(value, min_val)() if isinstance(min_val, str) else min_val
+    max_val_ft = getattr(value, max_val)() if isinstance(max_val, str) else max_val
+    return (value - min_val_ft) / (max_val_ft - min_val_ft)
 
 
-def bar_chart_style(
-    fraction: pl.Expr, color: str, *, align_right: bool = False
-) -> pl.Expr:
+def bar_chart_style(fraction: pl.Expr, color: str, *, align_right: bool = False) -> pl.Expr:
     """
     Generate a Polars expression that computes the background style for a bar chart inside a cell.
 
@@ -591,8 +580,7 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
     """
     exprs_styles = [pl.lit({}).alias(f"{col}::style") for col in data.columns]
     exprs_classes = [
-        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class")
-        for col in data.columns
+        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class") for col in data.columns
     ]
     return data.lazy().with_columns(*exprs_styles, *exprs_classes)
 
