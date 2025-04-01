@@ -78,14 +78,14 @@ def make_table_row() -> pl.Expr:
 
     Examples:
         >>> df = pl.DataFrame({
-        ...     "__tr::class": ["", ' class=\"foo\"',  ' class=\"foo bar\"'],
-        ...     "__tr::style": ["", ' style=\"foo: 2"', ' style="foo: 2; bar: baz"'],
+        ...     "tag::tr::class": ["", ' class=\"foo\"',  ' class=\"foo bar\"'],
+        ...     "tag::tr::style": ["", ' style=\"foo: 2"', ' style="foo: 2; bar: baz"'],
         ... })
         >>> with pl.Config(fmt_str_lengths=70):
         ...     df.select(make_table_row())
         shape: (3, 1)
         ┌───────────────────────────────────────────────┐
-        │ __tr                                          │
+        │ tag::tr                                       │
         │ ---                                           │
         │ str                                           │
         ╞═══════════════════════════════════════════════╡
@@ -94,9 +94,9 @@ def make_table_row() -> pl.Expr:
         │ <tr class="foo bar" style="foo: 2; bar: baz"> │
         └───────────────────────────────────────────────┘
     """
-    classes = pl.col(f"__tr::class")
-    style = pl.col(f"__tr::style")
-    return pl.format("<tr{}{}>", classes, style).alias("__tr")
+    classes = pl.col(f"tag::tr::class")
+    style = pl.col(f"tag::tr::style")
+    return pl.format("<tr{}{}>", classes, style).alias("tag::tr")
 
 
 def format_all_classes(column_names: list[str]) -> list[pl.Expr]:

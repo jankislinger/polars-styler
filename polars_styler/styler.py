@@ -154,7 +154,7 @@ class Styler:
         class_expr = pl.lit(class_names)
         if predicate is not None:
             class_expr = pl.when(predicate).then(class_expr).otherwise(pl.lit([]))
-        self._apply_cell_classes("__tr", class_expr)
+        self._apply_cell_classes("tag::tr", class_expr)
         return self
 
     def set_cell_class(
@@ -466,8 +466,8 @@ class Styler:
             self._df.pipe(reduce_with_columns, self._format_exprs)
             .with_columns(
                 cast_into_string(self._columns, self._null_string),
-                *format_all_classes(["__tr"] + self._columns),
-                *format_all_styles(["__tr"] + self._columns),
+                *format_all_classes(["tag::tr"] + self._columns),
+                *format_all_styles(["tag::tr"] + self._columns),
             )
             .select(make_table_row(), *make_table_cells(self._columns))
             .collect()
@@ -610,17 +610,17 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
         >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
         >>> apply_defaults(df).collect()
         shape: (3, 8)
-        ┌─────┬─────┬─────────────┬───────────┬───────────┬─────────────┬───────────┬───────────┐
-        │ A   ┆ B   ┆ __tr::style ┆ A::style  ┆ B::style  ┆ __tr::class ┆ A::class  ┆ B::class  │
-        │ --- ┆ --- ┆ ---         ┆ ---       ┆ ---       ┆ ---         ┆ ---       ┆ ---       │
-        │ i64 ┆ i64 ┆ struct[0]   ┆ struct[0] ┆ struct[0] ┆ list[str]   ┆ list[str] ┆ list[str] │
-        ╞═════╪═════╪═════════════╪═══════════╪═══════════╪═════════════╪═══════════╪═══════════╡
-        │ 1   ┆ 4   ┆ {}          ┆ {}        ┆ {}        ┆ []          ┆ []        ┆ []        │
-        │ 2   ┆ 5   ┆ {}          ┆ {}        ┆ {}        ┆ []          ┆ []        ┆ []        │
-        │ 3   ┆ 6   ┆ {}          ┆ {}        ┆ {}        ┆ []          ┆ []        ┆ []        │
-        └─────┴─────┴─────────────┴───────────┴───────────┴─────────────┴───────────┴───────────┘
+        ┌─────┬─────┬────────────────┬───────────┬───────────┬────────────────┬───────────┬───────────┐
+        │ A   ┆ B   ┆ tag::tr::style ┆ A::style  ┆ B::style  ┆ tag::tr::class ┆ A::class  ┆ B::class  │
+        │ --- ┆ --- ┆ ---            ┆ ---       ┆ ---       ┆ ---            ┆ ---       ┆ ---       │
+        │ i64 ┆ i64 ┆ struct[0]      ┆ struct[0] ┆ struct[0] ┆ list[str]      ┆ list[str] ┆ list[str] │
+        ╞═════╪═════╪════════════════╪═══════════╪═══════════╪════════════════╪═══════════╪═══════════╡
+        │ 1   ┆ 4   ┆ {}             ┆ {}        ┆ {}        ┆ []             ┆ []        ┆ []        │
+        │ 2   ┆ 5   ┆ {}             ┆ {}        ┆ {}        ┆ []             ┆ []        ┆ []        │
+        │ 3   ┆ 6   ┆ {}             ┆ {}        ┆ {}        ┆ []             ┆ []        ┆ []        │
+        └─────┴─────┴────────────────┴───────────┴───────────┴────────────────┴───────────┴───────────┘
     """
-    columns = ["__tr"] + data.columns
+    columns = ["tag::tr"] + data.columns
     exprs_styles = [pl.lit({}).alias(f"{col}::style") for col in columns]
     exprs_classes = [
         pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class") for col in columns
