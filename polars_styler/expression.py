@@ -49,25 +49,54 @@ def make_table_cell(column: str) -> pl.Expr:
     Examples:
         >>> df = pl.DataFrame({
         ...     "x": [1, 2, 3],
-        ...     "x::class": ["", ' class=\"foo\"',  'class=\"foo bar\"'],
-        ...     "x::style": ["", ' style=\"foo: 2"', 'style="foo: 2; bar: baz"'],
+        ...     "x::class": ["", ' class=\"foo\"',  ' class=\"foo bar\"'],
+        ...     "x::style": ["", ' style=\"foo: 2"', ' style="foo: 2; bar: baz"'],
         ... })
         >>> with pl.Config(fmt_str_lengths=70):
         ...     df.select(make_table_cell("x"))
         shape: (3, 1)
-        ┌───────────────────────────────────────────────────┐
-        │ x                                                 │
-        │ ---                                               │
-        │ str                                               │
-        ╞═══════════════════════════════════════════════════╡
-        │ <td>1</td>                                        │
-        │ <td class="foo" style="foo: 2">2</td>             │
-        │ <tdclass="foo bar"style="foo: 2; bar: baz">3</td> │
-        └───────────────────────────────────────────────────┘
+        ┌─────────────────────────────────────────────────────┐
+        │ x                                                   │
+        │ ---                                                 │
+        │ str                                                 │
+        ╞═════════════════════════════════════════════════════╡
+        │ <td>1</td>                                          │
+        │ <td class="foo" style="foo: 2">2</td>               │
+        │ <td class="foo bar" style="foo: 2; bar: baz">3</td> │
+        └─────────────────────────────────────────────────────┘
     """
     classes = pl.col(f"{column}::class")
     style = pl.col(f"{column}::style")
     return pl.format("<td{}{}>{}</td>", classes, style, pl.col(column)).alias(column)
+
+
+def make_table_row() -> pl.Expr:
+    """Make a table cell.
+
+    Returns:
+        The Polars expression.
+
+    Examples:
+        >>> df = pl.DataFrame({
+        ...     "__tr::class": ["", ' class=\"foo\"',  ' class=\"foo bar\"'],
+        ...     "__tr::style": ["", ' style=\"foo: 2"', ' style="foo: 2; bar: baz"'],
+        ... })
+        >>> with pl.Config(fmt_str_lengths=70):
+        ...     df.select(make_table_row())
+        shape: (3, 1)
+        ┌───────────────────────────────────────────────┐
+        │ __tr                                          │
+        │ ---                                           │
+        │ str                                           │
+        ╞═══════════════════════════════════════════════╡
+        │ <tr>                                          │
+        │ <tr class="foo" style="foo: 2">               │
+        │ <tr class="foo bar" style="foo: 2; bar: baz"> │
+        └───────────────────────────────────────────────┘
+    """
+    classes = pl.col(f"__tr::class")
+    style = pl.col(f"__tr::style")
+    return pl.format("<tr{}{}>", classes, style).alias("__tr")
 
 
 def format_all_classes(column_names: list[str]) -> list[pl.Expr]:

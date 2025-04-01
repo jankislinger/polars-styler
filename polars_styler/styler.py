@@ -8,7 +8,7 @@ from polars_styler.expression import (
     format_all_classes,
     format_all_styles,
     make_table_cells,
-    reduce_with_columns,
+    reduce_with_columns, make_table_row,
 )
 from polars_styler.table_attributes import TableAttributes
 
@@ -56,6 +56,23 @@ class Styler:
             >>> assert '<table class="ui celled table">' in styler.to_html()
         """
         self._table_attributes.add_table_classes(class_names)
+        return self
+
+    def set_thead_class(self, class_names: str | list[str]) -> Self:
+        """Store table-wide CSS class.
+
+        Args:
+            class_names (str | list[str]): CSS class name(s) to apply to the table header.
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).set_thead_class("uppercase")
+            >>> assert '<thead class="uppercase">' in styler.to_html()
+        """
+        self._table_attributes.add_thead_classes(class_names)
         return self
 
     def highlight_decrease(self, column: str, color: str) -> Self:
@@ -112,6 +129,32 @@ class Styler:
         """
         exprs = [pl.repeat(value, pl.len()).alias(key) for key, value in styles.items()]
         self._apply_cell_styles(column, *exprs)
+        return self
+
+    def set_row_class(self, class_names: str | list[str],
+                      *,
+                      predicate: pl.Expr | None = None,
+                      ) -> Self:
+        """Apply a CSS class to each table row tag.
+
+        Args:
+            class_names: CSS class name(s) to apply to the cell
+            predicate: Condition to apply the class (default: None)
+
+        Returns:
+            Self: The current instance for method chaining.
+
+        Examples:
+            >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+            >>> styler = Styler(df).set_row_class("border")
+            >>> assert '<tr class="border">' in styler.to_html()
+        """
+        if isinstance(class_names, str):
+            class_names = class_names.split(" ")
+        class_expr = pl.lit(class_names)
+        if predicate is not None:
+            class_expr = pl.when(predicate).then(class_expr).otherwise(pl.lit([]))
+        self._apply_cell_classes("__tr", class_expr)
         return self
 
     def set_cell_class(
@@ -423,10 +466,10 @@ class Styler:
             self._df.pipe(reduce_with_columns, self._format_exprs)
             .with_columns(
                 cast_into_string(self._columns, self._null_string),
-                *format_all_classes(self._columns),
-                *format_all_styles(self._columns),
+                *format_all_classes(["__tr"] + self._columns),
+                *format_all_styles(["__tr"] + self._columns),
             )
-            .select(*make_table_cells(self._columns))
+            .select(make_table_row(), *make_table_cells(self._columns))
             .collect()
         )
 
@@ -435,7 +478,6 @@ class Styler:
 
         html_table.append("<tbody>")
         for row in table.iter_rows():
-            html_table.append("<tr>")
             html_table.extend(row)
             html_table.append("</tr>")
         html_table.append("</tbody>")
@@ -567,20 +609,21 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
     Examples:
         >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
         >>> apply_defaults(df).collect()
-        shape: (3, 6)
-        ┌─────┬─────┬───────────┬───────────┬───────────┬───────────┐
-        │ A   ┆ B   ┆ A::style  ┆ B::style  ┆ A::class  ┆ B::class  │
-        │ --- ┆ --- ┆ ---       ┆ ---       ┆ ---       ┆ ---       │
-        │ i64 ┆ i64 ┆ struct[0] ┆ struct[0] ┆ list[str] ┆ list[str] │
-        ╞═════╪═════╪═══════════╪═══════════╪═══════════╪═══════════╡
-        │ 1   ┆ 4   ┆ {}        ┆ {}        ┆ []        ┆ []        │
-        │ 2   ┆ 5   ┆ {}        ┆ {}        ┆ []        ┆ []        │
-        │ 3   ┆ 6   ┆ {}        ┆ {}        ┆ []        ┆ []        │
-        └─────┴─────┴───────────┴───────────┴───────────┴───────────┘
+        shape: (3, 8)
+        ┌─────┬─────┬─────────────┬───────────┬───────────┬─────────────┬───────────┬───────────┐
+        │ A   ┆ B   ┆ __tr::style ┆ A::style  ┆ B::style  ┆ __tr::class ┆ A::class  ┆ B::class  │
+        │ --- ┆ --- ┆ ---         ┆ ---       ┆ ---       ┆ ---         ┆ ---       ┆ ---       │
+        │ i64 ┆ i64 ┆ struct[0]   ┆ struct[0] ┆ struct[0] ┆ list[str]   ┆ list[str] ┆ list[str] │
+        ╞═════╪═════╪═════════════╪═══════════╪═══════════╪═════════════╪═══════════╪═══════════╡
+        │ 1   ┆ 4   ┆ {}          ┆ {}        ┆ {}        ┆ []          ┆ []        ┆ []        │
+        │ 2   ┆ 5   ┆ {}          ┆ {}        ┆ {}        ┆ []          ┆ []        ┆ []        │
+        │ 3   ┆ 6   ┆ {}          ┆ {}        ┆ {}        ┆ []          ┆ []        ┆ []        │
+        └─────┴─────┴─────────────┴───────────┴───────────┴─────────────┴───────────┴───────────┘
     """
-    exprs_styles = [pl.lit({}).alias(f"{col}::style") for col in data.columns]
+    columns = ["__tr"] + data.columns
+    exprs_styles = [pl.lit({}).alias(f"{col}::style") for col in columns]
     exprs_classes = [
-        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class") for col in data.columns
+        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class") for col in columns
     ]
     return data.lazy().with_columns(*exprs_styles, *exprs_classes)
 
