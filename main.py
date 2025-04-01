@@ -29,7 +29,7 @@ def load_example(i: int) -> Example:
     return Example(title=f"Table {i:03d}", code=code, table=module.styler.to_html())
 
 
-def render_examples(examples):
+def render_examples(examples: list[Example]) -> str:
     env = Environment(loader=FileSystemLoader("templates"))
     template = env.get_template("template.html")
     return template.render(examples=examples)

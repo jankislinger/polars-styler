@@ -13,15 +13,24 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jinja2>=3.1.5",
+    "mypy>=1.15.0",
     "parameterized>=0.9.0",
     "pytest>=8.3.4",
     "ruff>=0.9.4",
 ]
 
 [tool.ruff]
-exclude = [
-    "*.ipynb",
-]
+exclude = ["*.ipynb"]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "Q", "ANN", "A", "I", "C4", "SIM", "TC"]
+
+[tool.ruff.lint.per-file-ignores]
+"py_tests/**/test_*.py" = ["ANN"]
+
+[tool.mypy]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["hatchling"]

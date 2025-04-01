@@ -45,12 +45,7 @@ class MyTestCase(unittest.TestCase):
         """Test highlighting maximum values in columns."""
         df = pl.DataFrame({"A": [1, 5, 3, 2], "B": [10, 20, 50, 40]})
 
-        html = (
-            Styler(df)
-            .highlight_max("A", "#ffcccb")
-            .highlight_max("B", "#90EE90")
-            .to_html()
-        )
+        html = Styler(df).highlight_max("A", "#ffcccb").highlight_max("B", "#90EE90").to_html()
 
         self.assertIn("background-color: #ffcccb", html)
         self.assertIn("background-color: #90EE90", html)
