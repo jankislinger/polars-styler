@@ -94,8 +94,8 @@ def make_table_row() -> pl.Expr:
         │ <tr class="foo bar" style="foo: 2; bar: baz"> │
         └───────────────────────────────────────────────┘
     """
-    classes = pl.col(f"tag::tr::class")
-    style = pl.col(f"tag::tr::style")
+    classes = pl.col("tag::tr::class")
+    style = pl.col("tag::tr::style")
     return pl.format("<tr{}{}>", classes, style).alias("tag::tr")
 
 

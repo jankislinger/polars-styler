@@ -40,6 +40,7 @@ class TableAttributes:
             yield f"<th>{html.escape(label)}</th>"
         yield from ["</tr>", "</thead>"]
 
+
 def _tag(tag: str, classes: list[str] | None) -> str:
     if not classes:
         return f"<{tag}>"

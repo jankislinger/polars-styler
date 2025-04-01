@@ -8,7 +8,8 @@ from polars_styler.expression import (
     format_all_classes,
     format_all_styles,
     make_table_cells,
-    reduce_with_columns, make_table_row,
+    make_table_row,
+    reduce_with_columns,
 )
 from polars_styler.table_attributes import TableAttributes
 
@@ -131,10 +132,12 @@ class Styler:
         self._apply_cell_styles(column, *exprs)
         return self
 
-    def set_row_class(self, class_names: str | list[str],
-                      *,
-                      predicate: pl.Expr | None = None,
-                      ) -> Self:
+    def set_row_class(
+        self,
+        class_names: str | list[str],
+        *,
+        predicate: pl.Expr | None = None,
+    ) -> Self:
         """Apply a CSS class to each table row tag.
 
         Args:
@@ -607,24 +610,22 @@ def apply_defaults(data: pl.DataFrame, /) -> pl.LazyFrame:
         pl.LazyFrame: A lazy frame with additional style and class columns.
 
     Examples:
-        >>> df = pl.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+        >>> df = pl.DataFrame({"A": [1, 2, 3]})
         >>> apply_defaults(df).collect()
-        shape: (3, 8)
-        ┌─────┬─────┬────────────────┬───────────┬───────────┬────────────────┬───────────┬───────────┐
-        │ A   ┆ B   ┆ tag::tr::style ┆ A::style  ┆ B::style  ┆ tag::tr::class ┆ A::class  ┆ B::class  │
-        │ --- ┆ --- ┆ ---            ┆ ---       ┆ ---       ┆ ---            ┆ ---       ┆ ---       │
-        │ i64 ┆ i64 ┆ struct[0]      ┆ struct[0] ┆ struct[0] ┆ list[str]      ┆ list[str] ┆ list[str] │
-        ╞═════╪═════╪════════════════╪═══════════╪═══════════╪════════════════╪═══════════╪═══════════╡
-        │ 1   ┆ 4   ┆ {}             ┆ {}        ┆ {}        ┆ []             ┆ []        ┆ []        │
-        │ 2   ┆ 5   ┆ {}             ┆ {}        ┆ {}        ┆ []             ┆ []        ┆ []        │
-        │ 3   ┆ 6   ┆ {}             ┆ {}        ┆ {}        ┆ []             ┆ []        ┆ []        │
-        └─────┴─────┴────────────────┴───────────┴───────────┴────────────────┴───────────┴───────────┘
+        shape: (3, 5)
+        ┌─────┬────────────────┬───────────┬────────────────┬───────────┐
+        │ A   ┆ tag::tr::style ┆ A::style  ┆ tag::tr::class ┆ A::class  │
+        │ --- ┆ ---            ┆ ---       ┆ ---            ┆ ---       │
+        │ i64 ┆ struct[0]      ┆ struct[0] ┆ list[str]      ┆ list[str] │
+        ╞═════╪════════════════╪═══════════╪════════════════╪═══════════╡
+        │ 1   ┆ {}             ┆ {}        ┆ []             ┆ []        │
+        │ 2   ┆ {}             ┆ {}        ┆ []             ┆ []        │
+        │ 3   ┆ {}             ┆ {}        ┆ []             ┆ []        │
+        └─────┴────────────────┴───────────┴────────────────┴───────────┘
     """
     columns = ["tag::tr"] + data.columns
     exprs_styles = [pl.lit({}).alias(f"{col}::style") for col in columns]
-    exprs_classes = [
-        pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class") for col in columns
-    ]
+    exprs_classes = [pl.lit([], dtype=pl.List(pl.String)).alias(f"{col}::class") for col in columns]
     return data.lazy().with_columns(*exprs_styles, *exprs_classes)
 
 
